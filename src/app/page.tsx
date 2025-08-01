@@ -1,0 +1,204 @@
+'use client';
+
+import { useState, useRef } from 'react';
+import { Camera, Upload, Heart, Users, Images } from 'lucide-react';
+import Link from 'next/link';
+
+export default function Home() {
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      const selectedFiles = Array.from(event.target.files);
+      setFiles(prev => [...prev, ...selectedFiles]);
+    }
+  };
+
+  const uploadFile = async (file: File) => {
+    try {
+      // Get presigned URL
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to get upload URL');
+
+      const { uploadUrl, fields } = await response.json();
+
+      // Upload file to S3/R2
+      const formData = new FormData();
+      Object.entries(fields).forEach(([key, value]) => {
+        formData.append(key, value as string);
+      });
+      formData.append('file', file);
+
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) throw new Error('Upload failed');
+
+      return true;
+    } catch (error) {
+      console.error('Upload error:', error);
+      return false;
+    }
+  };
+
+  const handleUpload = async () => {
+    if (files.length === 0) return;
+    
+    setUploading(true);
+    
+    try {
+      const uploadPromises = files.map(uploadFile);
+      const results = await Promise.all(uploadPromises);
+      
+      const successCount = results.filter(Boolean).length;
+      const failCount = results.length - successCount;
+      
+      if (failCount === 0) {
+        alert(`All ${successCount} files uploaded successfully! 📸`);
+      } else {
+        alert(`${successCount} files uploaded, ${failCount} failed. Please try again.`);
+      }
+      
+      setFiles([]);
+    } catch (error) {
+      alert('Upload failed. Please check your connection and try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4">
+      <div className="max-w-md mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8 pt-8">
+          <div className="flex items-center justify-center mb-4">
+            <Heart className="w-8 h-8 text-pink-500 mr-2" />
+            <h1 className="text-3xl font-bold text-gray-800">Wedding Memories</h1>
+          </div>
+          <p className="text-gray-600">Share your photos and videos from our special day!</p>
+          
+          <Link 
+            href="/gallery"
+            className="inline-flex items-center mt-4 text-pink-600 font-medium"
+          >
+            <Images className="w-5 h-5 mr-2" />
+            View Gallery
+          </Link>
+        </div>
+
+        {/* Upload Area */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+            capture="environment"
+          />
+
+          {files.length === 0 ? (
+            <div 
+              onClick={triggerFileInput}
+              className="border-2 border-dashed border-pink-300 rounded-xl p-8 text-center cursor-pointer hover:border-pink-400 transition-colors"
+            >
+              <Camera className="w-16 h-16 text-pink-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                Take or Upload Photos/Videos
+              </h3>
+              <p className="text-gray-500 text-sm">
+                Tap here to capture memories from the wedding
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-700 flex items-center">
+                <Users className="w-5 h-5 mr-2" />
+                Selected Files ({files.length})
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-3">
+                {files.map((file, index) => (
+                  <div key={index} className="relative">
+                    <div className="bg-gray-100 rounded-lg p-3 text-center">
+                      {file.type.startsWith('image/') ? (
+                        <div className="text-blue-500 text-xs mb-1">📷 Photo</div>
+                      ) : (
+                        <div className="text-purple-500 text-xs mb-1">🎥 Video</div>
+                      )}
+                      <div className="text-xs text-gray-600 truncate">
+                        {file.name}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {(file.size / 1024 / 1024).toFixed(1)} MB
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeFile(index)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={triggerFileInput}
+                  className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-medium"
+                >
+                  Add More
+                </button>
+                <button
+                  onClick={handleUpload}
+                  disabled={uploading}
+                  className="flex-1 bg-pink-500 text-white py-3 px-4 rounded-xl font-medium flex items-center justify-center disabled:opacity-50"
+                >
+                  {uploading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5 mr-2" />
+                      Upload
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Instructions */}
+        <div className="bg-white/80 rounded-xl p-4 text-center">
+          <p className="text-sm text-gray-600">
+            💝 Thank you for helping us capture our special moments! 
+            Your photos and videos will help us remember this magical day forever.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
