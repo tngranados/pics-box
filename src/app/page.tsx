@@ -79,14 +79,14 @@ export default function Home() {
       const failCount = results.length - successCount;
       
       if (failCount === 0) {
-        alert(`All ${successCount} files uploaded successfully! 📸`);
+        alert(`¡Todos los ${successCount} archivos se subieron exitosamente! 📸`);
       } else {
-        alert(`${successCount} files uploaded, ${failCount} failed. Please try again.`);
+        alert(`${successCount} archivos subidos, ${failCount} fallaron. Por favor intenta de nuevo.`);
       }
       
       setFiles([]);
     } catch {
-      alert('Upload failed. Please check your connection and try again.');
+      alert('Subida falló. Por favor verifica tu conexión e intenta de nuevo.');
     } finally {
       setUploading(false);
     }
@@ -107,16 +107,16 @@ export default function Home() {
         <div className="text-center mb-8 pt-8">
           <div className="flex items-center justify-center mb-4">
             <Heart className="w-8 h-8 text-pink-500 mr-2" />
-            <h1 className="text-3xl font-bold text-gray-800">Wedding Memories</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Recuerdos de boda</h1>
           </div>
-          <p className="text-gray-600">Share your photos and videos from our special day!</p>
+          <p className="text-gray-600">¡Comparte tus fotos y videos de nuestro día especial!</p>
           
           <Link 
             href="/gallery"
             className="inline-flex items-center mt-4 text-pink-600 font-medium"
           >
             <Images className="w-5 h-5 mr-2" />
-            View Gallery
+            Ver galería
           </Link>
         </div>
 
@@ -129,7 +129,6 @@ export default function Home() {
             multiple
             onChange={handleFileSelect}
             className="hidden"
-            capture="environment"
           />
 
           {files.length === 0 ? (
@@ -139,17 +138,17 @@ export default function Home() {
             >
               <Camera className="w-16 h-16 text-pink-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                Take or Upload Photos/Videos
+                Subir fotos/videos
               </h3>
               <p className="text-gray-500 text-sm">
-                Tap here to capture memories from the wedding
+                Toca aquí para subir recuerdos de la boda
               </p>
             </div>
           ) : (
             <div className="space-y-4">
               <h3 className="font-semibold text-gray-700 flex items-center">
                 <Users className="w-5 h-5 mr-2" />
-                Selected Files ({files.length})
+                Archivos seleccionados ({files.length})
               </h3>
               
               <div className="grid grid-cols-2 gap-3">
@@ -157,7 +156,7 @@ export default function Home() {
                   <div key={index} className="relative">
                     <div className="bg-gray-100 rounded-lg p-3 text-center">
                       {file.type.startsWith('image/') ? (
-                        <div className="text-blue-500 text-xs mb-1">📷 Photo</div>
+                        <div className="text-blue-500 text-xs mb-1">📷 Foto</div>
                       ) : (
                         <div className="text-purple-500 text-xs mb-1">🎥 Video</div>
                       )}
@@ -183,7 +182,7 @@ export default function Home() {
                   onClick={triggerFileInput}
                   className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-medium"
                 >
-                  Add More
+                  Agregar más
                 </button>
                 <button
                   onClick={handleUpload}
@@ -195,7 +194,7 @@ export default function Home() {
                   ) : (
                     <>
                       <Upload className="w-5 h-5 mr-2" />
-                      Upload
+                      Subir
                     </>
                   )}
                 </button>
@@ -207,8 +206,8 @@ export default function Home() {
         {/* Instructions */}
         <div className="bg-white/80 rounded-xl p-4 text-center">
           <p className="text-sm text-gray-600">
-            💝 Thank you for helping us capture our special moments! 
-            Your photos and videos will help us remember this magical day forever.
+            💝 ¡Gracias por ayudarnos a capturar nuestros momentos especiales! 
+            Tus fotos y videos nos ayudarán a recordar este día mágico para siempre.
           </p>
         </div>
       </div>

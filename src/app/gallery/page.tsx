@@ -161,7 +161,7 @@ export default function Gallery() {
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-pink-300 border-t-pink-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading beautiful memories...</p>
+          <p className="text-gray-600">Cargando hermosos recuerdos...</p>
         </div>
       </div>
     );
@@ -177,7 +177,7 @@ export default function Gallery() {
           </Link>
           <div className="flex items-center">
             <Heart className="w-6 h-6 text-pink-500 mr-2" />
-            <h1 className="text-2xl font-bold text-gray-800">Wedding Gallery</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Galería de boda</h1>
           </div>
         </div>
 
@@ -185,16 +185,16 @@ export default function Gallery() {
           <div className="text-center py-16">
             <div className="text-6xl mb-4">📸</div>
             <h2 className="text-xl font-semibold text-gray-700 mb-2">
-              No memories uploaded yet
+              Aún no hay recuerdos subidos
             </h2>
             <p className="text-gray-500 mb-6">
-              Be the first to share photos and videos from the wedding!
+              ¡Sé el primero en compartir fotos y videos de la boda!
             </p>
             <Link
               href="/"
               className="bg-pink-500 text-white px-6 py-3 rounded-xl font-medium inline-flex items-center"
             >
-              Upload Photos
+              Subir fotos
             </Link>
           </div>
         ) : (
@@ -203,9 +203,9 @@ export default function Gallery() {
             {pagination && (
               <div className="mb-4 text-center text-gray-600">
                 <p className="text-sm">
-                  Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1}-
-                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
-                  {pagination.totalItems} photos and videos
+                  Mostrando {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1}-
+                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} de{' '}
+                  {pagination.totalItems} fotos y videos
                 </p>
               </div>
             )}
@@ -220,7 +220,7 @@ export default function Gallery() {
                     {item.type === 'image' ? (
                       <Image
                         src={item.url}
-                        alt="Wedding memory"
+                        alt="Recuerdo de boda"
                         fill
                         className="object-cover"
                         onError={() => {
@@ -342,7 +342,7 @@ export default function Gallery() {
                 <div className="flex items-center justify-center w-full h-full text-white">
                   <div className="text-center">
                     <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p>Loading all photos...</p>
+                    <p>Cargando todas las fotos...</p>
                   </div>
                 </div>
               ) : (

@@ -65,7 +65,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange, clas
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
         className="flex items-center justify-center w-12 h-12 px-4 rounded-lg bg-white border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:enabled:bg-gray-50 hover:enabled:border-gray-300 transition-colors duration-150"
-        aria-label="Previous page"
+        aria-label="Página anterior"
       >
         <ChevronLeft className="w-5 h-5 text-gray-600" />
       </button>
@@ -86,7 +86,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange, clas
                     ? 'bg-pink-500 text-white'
                     : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
                 }`}
-                aria-label={`Go to page ${page}`}
+                aria-label={`Ir a la página ${page}`}
                 aria-current={currentPage === page ? 'page' : undefined}
               >
                 {page}
@@ -101,7 +101,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange, clas
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         className="flex items-center justify-center w-12 h-12 px-4 rounded-lg bg-white border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:enabled:bg-gray-50 hover:enabled:border-gray-300 transition-colors duration-150"
-        aria-label="Next page"
+        aria-label="Página siguiente"
       >
         <ChevronRight className="w-5 h-5 text-gray-600" />
       </button>

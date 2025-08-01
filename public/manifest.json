@@ -1,7 +1,7 @@
 {
-  "name": "Wedding Memories - PicsBox",
-  "short_name": "PicsBox",
-  "description": "Share your wedding photos and videos",
+  "name": "Boda Antonio y María - 16 agosto 2025",
+  "short_name": "Antonio y María",
+  "description": "Comparte tus fotos y videos de nuestra boda especial",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#fdf2f8",

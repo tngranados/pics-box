@@ -13,15 +13,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wedding Memories - PicsBox",
-  description: "Share your wedding photos and videos with us",
+  title: "Boda Antonio y María - 16 agosto 2025",
+  description: "Comparte tus fotos y videos de nuestra boda especial",
   manifest: "/manifest.json",
   themeColor: "#ec4899",
   viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "PicsBox",
+    title: "Antonio y María",
   },
 };
 
@@ -31,12 +31,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es">
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="PicsBox" />
+        <meta name="apple-mobile-web-app-title" content="Antonio y María" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
