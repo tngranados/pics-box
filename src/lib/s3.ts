@@ -1,30 +1,29 @@
-import { S3Client } from '@aws-sdk/client-s3';
-import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'auto',
+  region: 'auto',
   endpoint: process.env.S3_ENDPOINT,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
+  forcePathStyle: true,
+  signerVersion: 'v4',
 });
 
 export async function createUploadUrl(fileName: string, fileType: string) {
-  const key = `uploads/${Date.now()}-${fileName}`;
-  
-  const { url, fields } = await createPresignedPost(s3Client, {
+  const key = `uploads/${Date.now()}-${encodeURIComponent(fileName)}`;
+
+  const command = new PutObjectCommand({
     Bucket: process.env.S3_BUCKET_NAME!,
     Key: key,
-    Conditions: [
-      ['content-length-range', 0, 50 * 1024 * 1024], // 50MB max
-      ['starts-with', '$Content-Type', fileType.split('/')[0] + '/'],
-    ],
-    Fields: {
-      'Content-Type': fileType,
-    },
-    Expires: 600, // 10 minutes
+    ContentType: fileType,
   });
 
-  return { url, fields, key };
+  const url = await getSignedUrl(s3Client, command, { 
+    expiresIn: 3600 // 1 hour
+  });
+
+  return { url, key };
 }

@@ -67,7 +67,7 @@ export default function Gallery() {
             <p className="text-gray-500 mb-6">
               Be the first to share photos and videos from the wedding!
             </p>
-            <Link 
+            <Link
               href="/"
               className="bg-pink-500 text-white px-6 py-3 rounded-xl font-medium inline-flex items-center"
             >
@@ -94,7 +94,7 @@ export default function Gallery() {
                     />
                   )}
                 </div>
-                
+
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 rounded-lg flex items-center justify-center">
                   <button className="opacity-0 group-hover:opacity-100 bg-white text-gray-800 p-2 rounded-full transition-opacity">
                     <Download className="w-4 h-4" />

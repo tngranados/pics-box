@@ -18,6 +18,8 @@ export default function Home() {
 
   const uploadFile = async (file: File) => {
     try {
+      console.log('Starting upload for file:', file.name, file.type);
+      
       // Get presigned URL
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -28,27 +30,38 @@ export default function Home() {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to get upload URL');
+      console.log('API response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API error:', errorData);
+        throw new Error(`Failed to get upload URL: ${errorData.error}`);
+      }
 
-      const { uploadUrl, fields } = await response.json();
+      const { uploadUrl } = await response.json();
+      console.log('Got presigned PUT URL, uploading to:', uploadUrl);
 
-      // Upload file to S3/R2
-      const formData = new FormData();
-      Object.entries(fields).forEach(([key, value]) => {
-        formData.append(key, value as string);
-      });
-      formData.append('file', file);
-
+      // Upload file to R2 using PUT
       const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        body: formData,
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
       });
 
-      if (!uploadResponse.ok) throw new Error('Upload failed');
+      console.log('Upload response status:', uploadResponse.status);
+      
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error('Upload failed:', errorText);
+        throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
+      }
 
+      console.log('Upload successful for:', file.name);
       return true;
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Upload error for file', file.name, ':', error);
       return false;
     }
   };
