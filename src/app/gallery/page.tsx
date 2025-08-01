@@ -1,9 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, Download, Heart, X, Play } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Zoom, Keyboard } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+import 'swiper/css/zoom';
 
 interface MediaFile {
   key: string;
@@ -18,9 +25,12 @@ export default function Gallery() {
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<MediaFile | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     fetchMedia();
+    setMounted(true);
   }, []);
 
   const fetchMedia = async () => {
@@ -56,6 +66,32 @@ export default function Gallery() {
       console.error('Failed to download media:', error);
     }
   };
+
+  const openFullscreen = (index: number) => {
+    setCurrentIndex(index);
+    setSelectedMedia(media[index]);
+    // Prevent body scrolling
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeFullscreen = () => {
+    console.log('Close button clicked'); // Debug log
+    setSelectedMedia(null);
+    // Restore body scrolling
+    document.body.style.overflow = 'unset';
+  };
+
+  // Add escape key handler
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedMedia) {
+        closeFullscreen();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [selectedMedia]);
 
   if (loading) {
     return (
@@ -100,11 +136,11 @@ export default function Gallery() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {media.map((item) => (
+            {media.map((item, index) => (
               <div key={item.key} className="relative group">
                 <div
-                  className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer relative"
-                  onClick={() => setSelectedMedia(item)}
+                  className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer relative active:scale-95 transition-transform duration-150"
+                  onClick={() => openFullscreen(index)}
                 >
                   {item.type === 'image' ? (
                     <Image
@@ -134,13 +170,13 @@ export default function Gallery() {
                   )}
                 </div>
 
-                <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 rounded-lg flex items-center justify-center">
+                <div className="absolute top-2 right-2 z-10">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       downloadMedia(item);
                     }}
-                    className="opacity-0 group-hover:opacity-100 bg-white text-gray-800 p-2 rounded-full transition-opacity hover:bg-gray-100"
+                    className="opacity-0 group-hover:opacity-100 bg-white text-gray-800 p-2 rounded-full transition-opacity hover:bg-gray-100 shadow-lg"
                   >
                     <Download className="w-4 h-4" />
                   </button>
@@ -150,51 +186,133 @@ export default function Gallery() {
           </div>
         )}
 
-        {/* Full-screen modal */}
-        {selectedMedia && (
-          <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4">
-            <div className="relative max-w-4xl max-h-full w-full h-full flex items-center justify-center">
-              <button
-                onClick={() => setSelectedMedia(null)}
-                className="absolute top-4 right-4 z-10 text-white bg-black bg-opacity-50 p-2 rounded-full hover:bg-opacity-70"
-              >
-                <X className="w-6 h-6" />
-              </button>
-
-              <button
-                onClick={() => downloadMedia(selectedMedia)}
-                className="absolute top-4 right-16 z-10 text-white bg-black bg-opacity-50 p-2 rounded-full hover:bg-opacity-70"
-              >
-                <Download className="w-6 h-6" />
-              </button>
-
-              <div className="w-full h-full flex items-center justify-center">
-                {selectedMedia.type === 'image' ? (
-                  <Image
-                    src={selectedMedia.url}
-                    alt={selectedMedia.fileName}
-                    width={800}
-                    height={600}
-                    className="max-w-full max-h-full object-contain"
-                  />
-                ) : (
-                  <video
-                    src={selectedMedia.url}
-                    controls
-                    autoPlay
-                    className="max-w-full max-h-full object-contain"
-                  />
-                )}
+        {/* Swiper-based Full-screen Gallery */}
+        {selectedMedia && mounted && createPortal(
+          <div 
+            className="fixed inset-0 bg-black"
+            style={{ 
+              zIndex: 999999,
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh'
+            }}
+            onClick={(e) => {
+              // Close if clicking on the background (not on the swiper content)
+              if (e.target === e.currentTarget) {
+                closeFullscreen();
+              }
+            }}
+          >
+            <div className="relative w-full h-full">
+              {/* Header with close and download buttons */}
+              <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent" style={{ zIndex: 1000 }}>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Close button mousedown'); // Debug
+                    closeFullscreen();
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Close button touchstart'); // Debug
+                    closeFullscreen();
+                  }}
+                  className="text-white bg-red-600 p-4 rounded-full hover:bg-red-700 transition-all cursor-pointer select-none"
+                  style={{ zIndex: 1001 }}
+                >
+                  <X className="w-6 h-6" />
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    downloadMedia(media[currentIndex]);
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    downloadMedia(media[currentIndex]);
+                  }}
+                  className="text-white bg-black/70 p-4 rounded-full hover:bg-black/90 transition-all cursor-pointer select-none"
+                  style={{ zIndex: 1001 }}
+                >
+                  <Download className="w-6 h-6" />
+                </button>
               </div>
 
-              <div className="absolute bottom-4 left-4 text-white bg-black bg-opacity-50 px-3 py-2 rounded">
-                <p className="text-sm font-medium">{selectedMedia.fileName}</p>
-                <p className="text-xs opacity-75">
-                  {new Date(selectedMedia.uploadedAt).toLocaleString()}
-                </p>
+              {/* Swiper Gallery */}
+              <Swiper
+                modules={[Navigation, Pagination, Zoom, Keyboard]}
+                spaceBetween={0}
+                slidesPerView={1}
+                initialSlide={currentIndex}
+                navigation={{
+                  enabled: true,
+                }}
+                pagination={{
+                  enabled: true,
+                  clickable: true,
+                }}
+                zoom={{
+                  maxRatio: 3,
+                  minRatio: 1,
+                }}
+                keyboard={{
+                  enabled: true,
+                }}
+                className="w-full h-full"
+                style={{
+                  '--swiper-navigation-color': '#ffffff',
+                  '--swiper-pagination-color': '#ffffff',
+                  '--swiper-navigation-size': '44px',
+                } as React.CSSProperties}
+              >
+                {media.map((item, index) => (
+                  <SwiperSlide key={item.key} className="flex items-center justify-center">
+                    <div className="swiper-zoom-container w-full h-full flex items-center justify-center">
+                      {item.type === 'image' ? (
+                        <Image
+                          src={item.url}
+                          alt={item.fileName}
+                          width={1920}
+                          height={1080}
+                          className="max-w-full max-h-full object-contain"
+                          priority={index === currentIndex}
+                        />
+                      ) : (
+                        <video
+                          src={item.url}
+                          controls
+                          className="max-w-full max-h-full object-contain"
+                          playsInline
+                        />
+                      )}
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+
+              {/* Media info overlay */}
+              <div className="absolute bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                <div className="text-white">
+                  <p className="text-sm font-medium mb-1">{media[currentIndex]?.fileName}</p>
+                  <p className="text-xs opacity-75 mb-2">
+                    {media[currentIndex] && new Date(media[currentIndex].uploadedAt).toLocaleString()}
+                  </p>
+                  <p className="text-xs opacity-90">
+                    {currentIndex + 1} of {media.length}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>
