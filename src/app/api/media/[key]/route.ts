@@ -18,10 +18,9 @@ export async function GET(
   try {
     const { key } = await params;
     
-    // Decode the key parameter (it comes URL encoded)
-    const decodedKey = decodeURIComponent(key);
-    
-    console.log('Media proxy request for key:', decodedKey);
+    // The key parameter comes URL encoded from the route, but we need to use it as-is
+    // because the actual S3 key was stored with encoding
+    console.log('Media proxy request for key:', key);
     console.log('Environment check:', {
       hasEndpoint: !!process.env.S3_ENDPOINT,
       hasBucket: !!process.env.S3_BUCKET_NAME,
@@ -30,7 +29,7 @@ export async function GET(
 
     const command = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET_NAME!,
-      Key: decodedKey,
+      Key: key,
     });
 
     const response = await s3Client.send(command);
