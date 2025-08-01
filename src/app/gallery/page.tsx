@@ -67,8 +67,8 @@ export default function Gallery() {
     }
   };
 
-  const fetchAllMedia = async () => {
-    if (allMedia.length > 0) return; // Already loaded
+  const fetchAllMedia = async (): Promise<MediaFile[]> => {
+    if (allMedia.length > 0) return allMedia; // Already loaded
     
     try {
       setLoadingAllMedia(true);
@@ -89,9 +89,11 @@ export default function Gallery() {
 
       setAllMedia(allFiles);
       setLoadingAllMedia(false);
+      return allFiles;
     } catch (error) {
       console.error('Failed to fetch all media:', error);
       setLoadingAllMedia(false);
+      return [];
     }
   };
 
@@ -118,15 +120,18 @@ export default function Gallery() {
   };
 
   const openFullscreen = async (index: number) => {
-    // First load all media if not already loaded
-    await fetchAllMedia();
-    
-    // Find the global index of the selected media in all media
     const selectedItem = media[index];
-    const globalIndex = allMedia.findIndex(item => item.key === selectedItem.key);
     
-    setCurrentIndex(globalIndex >= 0 ? globalIndex : 0);
+    // First load all media if not already loaded
+    const loadedMedia = await fetchAllMedia();
+    
+    // Find the global index using the returned media array
+    const globalIndex = loadedMedia.findIndex(item => item.key === selectedItem.key);
+    
+    // Set both states with the correct values
     setSelectedMedia(selectedItem);
+    setCurrentIndex(globalIndex >= 0 ? globalIndex : 0);
+    
     // Prevent body scrolling
     document.body.style.overflow = 'hidden';
   };
@@ -139,6 +144,7 @@ export default function Gallery() {
   };
 
   // Add escape key handler
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && selectedMedia) {
