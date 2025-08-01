@@ -6,7 +6,8 @@ import { ArrowLeft, Download, Heart, X, Play } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination, Zoom, Keyboard } from 'swiper/modules';
+import { Navigation, Pagination as SwiperPagination, Zoom, Keyboard } from 'swiper/modules';
+import Pagination from '@/components/Pagination';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -21,33 +22,82 @@ interface MediaFile {
   size: number;
 }
 
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 export default function Gallery() {
   const [media, setMedia] = useState<MediaFile[]>([]);
+  const [allMedia, setAllMedia] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<MediaFile | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [loadingAllMedia, setLoadingAllMedia] = useState(false);
 
   useEffect(() => {
-    fetchMedia();
+    fetchMedia(currentPage);
     setMounted(true);
-  }, []);
+  }, [currentPage]);
 
-  const fetchMedia = async () => {
+  const fetchMedia = async (page: number) => {
     try {
-      const response = await fetch('/api/gallery');
+      setLoading(true);
+      const response = await fetch(`/api/gallery?page=${page}&limit=20`);
       if (!response.ok) {
         throw new Error('Failed to fetch gallery');
       }
 
       const data = await response.json();
       setMedia(data.files || []);
+      setPagination(data.pagination);
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch media:', error);
       setMedia([]);
+      setPagination(null);
       setLoading(false);
     }
+  };
+
+  const fetchAllMedia = async () => {
+    if (allMedia.length > 0) return; // Already loaded
+    
+    try {
+      setLoadingAllMedia(true);
+      // Fetch all media for the viewer by getting all pages
+      const allFiles: MediaFile[] = [];
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await fetch(`/api/gallery?page=${page}&limit=100`);
+        if (!response.ok) break;
+        
+        const data = await response.json();
+        allFiles.push(...(data.files || []));
+        hasMore = data.pagination.hasNextPage;
+        page++;
+      }
+
+      setAllMedia(allFiles);
+      setLoadingAllMedia(false);
+    } catch (error) {
+      console.error('Failed to fetch all media:', error);
+      setLoadingAllMedia(false);
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const downloadMedia = async (media: MediaFile) => {
@@ -67,9 +117,16 @@ export default function Gallery() {
     }
   };
 
-  const openFullscreen = (index: number) => {
-    setCurrentIndex(index);
-    setSelectedMedia(media[index]);
+  const openFullscreen = async (index: number) => {
+    // First load all media if not already loaded
+    await fetchAllMedia();
+    
+    // Find the global index of the selected media in all media
+    const selectedItem = media[index];
+    const globalIndex = allMedia.findIndex(item => item.key === selectedItem.key);
+    
+    setCurrentIndex(globalIndex >= 0 ? globalIndex : 0);
+    setSelectedMedia(selectedItem);
     // Prevent body scrolling
     document.body.style.overflow = 'hidden';
   };
@@ -135,55 +192,79 @@ export default function Gallery() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {media.map((item, index) => (
-              <div key={item.key} className="relative group">
-                <div
-                  className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer relative active:scale-95 transition-transform duration-150"
-                  onClick={() => openFullscreen(index)}
-                >
-                  {item.type === 'image' ? (
-                    <Image
-                      src={item.url}
-                      alt="Wedding memory"
-                      fill
-                      className="object-cover"
-                      onError={() => {
-                        console.error('Image failed to load:', item.url);
-                      }}
-                      onLoad={() => {
-                        console.log('Image loaded successfully:', item.url);
-                      }}
-                    />
-                  ) : (
-                    <>
-                      <video
-                        src={item.url}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        controls={false}
-                        muted
-                      />
-                      <div className="absolute top-2 left-2 bg-black bg-opacity-60 text-white p-1 rounded z-10">
-                        <Play className="w-4 h-4" />
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="absolute top-2 right-2 z-10">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      downloadMedia(item);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 bg-white text-gray-800 p-2 rounded-full transition-opacity hover:bg-gray-100 shadow-lg"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                </div>
+          <>
+            {/* Gallery stats */}
+            {pagination && (
+              <div className="mb-4 text-center text-gray-600">
+                <p className="text-sm">
+                  Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1}-
+                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
+                  {pagination.totalItems} photos and videos
+                </p>
               </div>
-            ))}
-          </div>
+            )}
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {media.map((item, index) => (
+                <div key={item.key} className="relative group">
+                  <div
+                    className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer relative active:scale-95 transition-transform duration-150"
+                    onClick={() => openFullscreen(index)}
+                  >
+                    {item.type === 'image' ? (
+                      <Image
+                        src={item.url}
+                        alt="Wedding memory"
+                        fill
+                        className="object-cover"
+                        onError={() => {
+                          console.error('Image failed to load:', item.url);
+                        }}
+                        onLoad={() => {
+                          console.log('Image loaded successfully:', item.url);
+                        }}
+                      />
+                    ) : (
+                      <>
+                        <video
+                          src={item.url}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          controls={false}
+                          muted
+                        />
+                        <div className="absolute top-2 left-2 bg-black bg-opacity-60 text-white p-1 rounded z-10">
+                          <Play className="w-4 h-4" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="absolute top-2 right-2 z-10">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadMedia(item);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 bg-white text-gray-800 p-2 rounded-full transition-opacity hover:bg-gray-100 shadow-lg"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {pagination && pagination.totalPages > 1 && (
+              <div className="mt-8">
+                <Pagination
+                  currentPage={pagination.currentPage}
+                  totalPages={pagination.totalPages}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            )}
+          </>
         )}
 
         {/* Swiper-based Full-screen Gallery */}
@@ -232,12 +313,16 @@ export default function Gallery() {
                   onMouseDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    downloadMedia(media[currentIndex]);
+                    if (allMedia[currentIndex]) {
+                      downloadMedia(allMedia[currentIndex]);
+                    }
                   }}
                   onTouchStart={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    downloadMedia(media[currentIndex]);
+                    if (allMedia[currentIndex]) {
+                      downloadMedia(allMedia[currentIndex]);
+                    }
                   }}
                   className="text-white bg-black/70 p-4 rounded-full hover:bg-black/90 transition-all cursor-pointer select-none"
                   style={{ zIndex: 1001 }}
@@ -247,66 +332,78 @@ export default function Gallery() {
               </div>
 
               {/* Swiper Gallery */}
-              <Swiper
-                modules={[Navigation, Pagination, Zoom, Keyboard]}
-                spaceBetween={0}
-                slidesPerView={1}
-                initialSlide={currentIndex}
-                navigation={{
-                  enabled: true,
-                }}
-                pagination={{
-                  enabled: true,
-                  clickable: true,
-                }}
-                zoom={{
-                  maxRatio: 3,
-                  minRatio: 1,
-                }}
-                keyboard={{
-                  enabled: true,
-                }}
-                className="w-full h-full"
-                style={{
-                  '--swiper-navigation-color': '#ffffff',
-                  '--swiper-pagination-color': '#ffffff',
-                  '--swiper-navigation-size': '44px',
-                } as React.CSSProperties}
-              >
-                {media.map((item, index) => (
-                  <SwiperSlide key={item.key} className="flex items-center justify-center">
-                    <div className="swiper-zoom-container w-full h-full flex items-center justify-center">
-                      {item.type === 'image' ? (
-                        <Image
-                          src={item.url}
-                          alt={item.fileName}
-                          width={1920}
-                          height={1080}
-                          className="max-w-full max-h-full object-contain"
-                          priority={index === currentIndex}
-                        />
-                      ) : (
-                        <video
-                          src={item.url}
-                          controls
-                          className="max-w-full max-h-full object-contain"
-                          playsInline
-                        />
-                      )}
-                    </div>
-                  </SwiperSlide>
-                ))}
-              </Swiper>
+              {loadingAllMedia ? (
+                <div className="flex items-center justify-center w-full h-full text-white">
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p>Loading all photos...</p>
+                  </div>
+                </div>
+              ) : (
+                <Swiper
+                  modules={[Navigation, SwiperPagination, Zoom, Keyboard]}
+                  spaceBetween={0}
+                  slidesPerView={1}
+                  initialSlide={currentIndex}
+                  navigation={{
+                    enabled: true,
+                  }}
+                  pagination={{
+                    enabled: true,
+                    clickable: true,
+                  }}
+                  zoom={{
+                    maxRatio: 3,
+                    minRatio: 1,
+                  }}
+                  keyboard={{
+                    enabled: true,
+                  }}
+                  onSlideChange={(swiper) => {
+                    setCurrentIndex(swiper.activeIndex);
+                  }}
+                  className="w-full h-full"
+                  style={{
+                    '--swiper-navigation-color': '#ffffff',
+                    '--swiper-pagination-color': '#ffffff',
+                    '--swiper-navigation-size': '44px',
+                  } as React.CSSProperties}
+                >
+                  {allMedia.map((item, index) => (
+                    <SwiperSlide key={item.key} className="flex items-center justify-center">
+                      <div className="swiper-zoom-container w-full h-full flex items-center justify-center">
+                        {item.type === 'image' ? (
+                          <Image
+                            src={item.url}
+                            alt={item.fileName}
+                            width={1920}
+                            height={1080}
+                            className="max-w-full max-h-full object-contain"
+                            priority={index === currentIndex}
+                          />
+                        ) : (
+                          <video
+                            src={item.url}
+                            controls
+                            className="max-w-full max-h-full object-contain"
+                            playsInline
+                          />
+                        )}
+                      </div>
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+              )}
 
               {/* Media info overlay */}
               <div className="absolute bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-black/80 to-transparent">
                 <div className="text-white">
-                  <p className="text-sm font-medium mb-1">{media[currentIndex]?.fileName}</p>
+                  <p className="text-sm font-medium mb-1">{allMedia[currentIndex]?.fileName}</p>
                   <p className="text-xs opacity-75 mb-2">
-                    {media[currentIndex] && new Date(media[currentIndex].uploadedAt).toLocaleString()}
+                    {allMedia[currentIndex] && new Date(allMedia[currentIndex].uploadedAt).toLocaleString()}
                   </p>
                   <p className="text-xs opacity-90">
-                    {currentIndex + 1} of {media.length}
+                    {currentIndex + 1} of {allMedia.length}
                   </p>
                 </div>
               </div>

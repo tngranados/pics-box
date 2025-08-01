@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { listUploadedFiles } from '@/lib/s3';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    console.log('Gallery API called');
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '1');
+    const limit = parseInt(url.searchParams.get('limit') || '20');
+    const offset = (page - 1) * limit;
+    
+    console.log(`Gallery API called - page: ${page}, limit: ${limit}, offset: ${offset}`);
     
     const files = await listUploadedFiles();
     console.log(`Found ${files.length} files in gallery`);
@@ -37,12 +42,25 @@ export async function GET() {
       }
     });
 
-    // Filter out any failed URL generations
-    const validMediaFiles = mediaFiles.filter(file => file !== null);
+    // Filter out any failed URL generations and sort by upload date (newest first)
+    const validMediaFiles = mediaFiles
+      .filter(file => file !== null)
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    
+    // Apply pagination
+    const paginatedFiles = validMediaFiles.slice(offset, offset + limit);
+    const totalPages = Math.ceil(validMediaFiles.length / limit);
     
     return NextResponse.json({
-      files: validMediaFiles,
-      count: validMediaFiles.length,
+      files: paginatedFiles,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: validMediaFiles.length,
+        itemsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
     });
   } catch (error) {
     console.error('Gallery fetch failed:', error);
