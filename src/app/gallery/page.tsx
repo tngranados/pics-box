@@ -132,19 +132,40 @@ export default function Gallery() {
     setSelectedMedia(selectedItem);
     setCurrentIndex(globalIndex >= 0 ? globalIndex : 0);
     
-    // Prevent body scrolling
+    // Prevent body scrolling and hide browser UI
     document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+    
+    // Try to hide address bar on mobile
+    window.scrollTo(0, 1);
+    setTimeout(() => window.scrollTo(0, 1), 100);
+    
+    // Add meta viewport changes for fullscreen
+    const viewport = document.querySelector('meta[name=viewport]');
+    if (viewport) {
+      viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, minimal-ui');
+    }
   };
 
   const closeFullscreen = () => {
     console.log('Close button clicked'); // Debug log
     setSelectedMedia(null);
-    // Restore body scrolling
+    // Restore body scrolling and position
     document.body.style.overflow = 'unset';
+    document.body.style.position = 'unset';
+    document.body.style.width = 'unset';
+    document.body.style.height = 'unset';
+    
+    // Restore original viewport
+    const viewport = document.querySelector('meta[name=viewport]');
+    if (viewport) {
+      viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+    }
   };
 
-  // Add escape key handler
-
+  // Add escape key handler and fullscreen management
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && selectedMedia) {
@@ -152,8 +173,36 @@ export default function Gallery() {
       }
     };
 
+    const handleOrientationChange = () => {
+      if (selectedMedia) {
+        // Re-hide browser UI after orientation change
+        setTimeout(() => {
+          window.scrollTo(0, 1);
+          // Force viewport refresh
+          const viewport = document.querySelector('meta[name=viewport]');
+          if (viewport) {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, minimal-ui');
+          }
+        }, 500);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (selectedMedia && !document.hidden) {
+        // Re-hide browser UI when returning to tab
+        setTimeout(() => window.scrollTo(0, 1), 100);
+      }
+    };
+
     document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [selectedMedia]);
 
   if (loading) {
@@ -276,7 +325,7 @@ export default function Gallery() {
         {/* Swiper-based Full-screen Gallery */}
         {selectedMedia && mounted && createPortal(
           <div 
-            className="fixed inset-0 bg-black"
+            className="fixed bg-black"
             style={{ 
               zIndex: 999999,
               position: 'fixed',
@@ -285,7 +334,14 @@ export default function Gallery() {
               right: 0,
               bottom: 0,
               width: '100vw',
-              height: '100vh'
+              height: '100vh',
+              height: '100dvh', // Dynamic viewport height for mobile
+              minHeight: '100vh',
+              minHeight: '100dvh',
+              overflow: 'hidden',
+              touchAction: 'manipulation',
+              WebkitUserSelect: 'none',
+              userSelect: 'none'
             }}
             onClick={(e) => {
               // Close if clicking on the background (not on the swiper content)
@@ -293,10 +349,35 @@ export default function Gallery() {
                 closeFullscreen();
               }
             }}
+            onTouchStart={(e) => {
+              // Prevent default touch behavior to avoid browser UI
+              if (e.target === e.currentTarget) {
+                e.preventDefault();
+              }
+            }}
+            onTouchMove={(e) => {
+              // Prevent scrolling that might trigger browser UI
+              e.preventDefault();
+            }}
+            onTouchEnd={(e) => {
+              // Handle touch end for closing
+              if (e.target === e.currentTarget) {
+                e.preventDefault();
+                closeFullscreen();
+              }
+            }}
           >
             <div className="relative w-full h-full">
               {/* Header with close and download buttons */}
-              <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent" style={{ zIndex: 1000 }}>
+              <div 
+                className="absolute top-0 left-0 right-0 flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent" 
+                style={{ 
+                  zIndex: 1000,
+                  paddingTop: 'max(1rem, env(safe-area-inset-top, 1rem))',
+                  paddingLeft: 'max(1rem, env(safe-area-inset-left, 1rem))',
+                  paddingRight: 'max(1rem, env(safe-area-inset-right, 1rem))'
+                }}
+              >
                 <button
                   onMouseDown={(e) => {
                     e.preventDefault();
@@ -402,7 +483,14 @@ export default function Gallery() {
               )}
 
               {/* Media info overlay */}
-              <div className="absolute bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-black/80 to-transparent">
+              <div 
+                className="absolute bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-black/80 to-transparent"
+                style={{
+                  paddingLeft: 'max(1rem, env(safe-area-inset-left, 1rem))',
+                  paddingRight: 'max(1rem, env(safe-area-inset-right, 1rem))',
+                  paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))'
+                }}
+              >
                 <div className="text-white">
                   <p className="text-sm font-medium mb-1">{allMedia[currentIndex]?.fileName}</p>
                   <p className="text-xs opacity-75 mb-2">
