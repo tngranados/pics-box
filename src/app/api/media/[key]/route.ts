@@ -9,15 +9,14 @@ const s3Client = new S3Client({
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
   forcePathStyle: true,
-  signerVersion: 'v4',
 });
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { key: string } }
+  { params }: { params: Promise<{ key: string }> }
 ) {
   try {
-    const { key } = params;
+    const { key } = await params;
     
     // Decode the key parameter (it comes URL encoded)
     const decodedKey = decodeURIComponent(key);

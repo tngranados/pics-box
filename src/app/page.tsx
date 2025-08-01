@@ -85,7 +85,7 @@ export default function Home() {
       }
       
       setFiles([]);
-    } catch (error) {
+    } catch {
       alert('Upload failed. Please check your connection and try again.');
     } finally {
       setUploading(false);

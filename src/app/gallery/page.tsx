@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Download, Heart, X, Play } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface MediaFile {
   key: string;
@@ -106,13 +107,13 @@ export default function Gallery() {
                   onClick={() => setSelectedMedia(item)}
                 >
                   {item.type === 'image' ? (
-                    <img
+                    <Image
                       src={item.url}
                       alt="Wedding memory"
-                      className="absolute inset-0 w-full h-full object-cover"
-                      onError={(e) => {
+                      fill
+                      className="object-cover"
+                      onError={() => {
                         console.error('Image failed to load:', item.url);
-                        e.currentTarget.style.border = '2px solid red';
                       }}
                       onLoad={() => {
                         console.log('Image loaded successfully:', item.url);
@@ -169,9 +170,11 @@ export default function Gallery() {
 
               <div className="w-full h-full flex items-center justify-center">
                 {selectedMedia.type === 'image' ? (
-                  <img
+                  <Image
                     src={selectedMedia.url}
                     alt={selectedMedia.fileName}
+                    width={800}
+                    height={600}
                     className="max-w-full max-h-full object-contain"
                   />
                 ) : (

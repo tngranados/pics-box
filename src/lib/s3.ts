@@ -9,7 +9,6 @@ const s3Client = new S3Client({
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
   forcePathStyle: true,
-  signerVersion: 'v4',
 });
 
 export async function createUploadUrl(fileName: string, fileType: string) {

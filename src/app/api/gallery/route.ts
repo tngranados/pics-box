@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { listUploadedFiles, createDownloadUrl } from '@/lib/s3';
+import { listUploadedFiles } from '@/lib/s3';
 
 export async function GET() {
   try {
