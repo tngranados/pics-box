@@ -334,9 +334,7 @@ export default function Gallery() {
               right: 0,
               bottom: 0,
               width: '100vw',
-              height: '100vh',
               height: '100dvh', // Dynamic viewport height for mobile
-              minHeight: '100vh',
               minHeight: '100dvh',
               overflow: 'hidden',
               touchAction: 'manipulation',
