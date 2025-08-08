@@ -210,7 +210,6 @@ export default function Gallery() {
       <div 
         className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center"
         style={{
-          minHeight: '100vh',
           minHeight: '100dvh',
           paddingTop: 'max(1rem, env(safe-area-inset-top))',
           paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
@@ -230,7 +229,6 @@ export default function Gallery() {
     <div 
       className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4"
       style={{
-        minHeight: '100vh',
         minHeight: '100dvh',
         paddingTop: 'max(1rem, env(safe-area-inset-top))',
         paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
