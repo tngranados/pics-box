@@ -19,7 +19,7 @@ export default function Home() {
   const uploadFile = async (file: File) => {
     try {
       console.log('Starting upload for file:', file.name, file.type);
-      
+
       // Get presigned URL
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -31,7 +31,7 @@ export default function Home() {
       });
 
       console.log('API response status:', response.status);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         console.error('API error:', errorData);
@@ -51,7 +51,7 @@ export default function Home() {
       });
 
       console.log('Upload response status:', uploadResponse.status);
-      
+
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
         console.error('Upload failed:', errorText);
@@ -68,22 +68,22 @@ export default function Home() {
 
   const handleUpload = async () => {
     if (files.length === 0) return;
-    
+
     setUploading(true);
-    
+
     try {
       const uploadPromises = files.map(uploadFile);
       const results = await Promise.all(uploadPromises);
-      
+
       const successCount = results.filter(Boolean).length;
       const failCount = results.length - successCount;
-      
+
       if (failCount === 0) {
         alert(`¡Todos los ${successCount} archivos se subieron exitosamente! 📸`);
       } else {
         alert(`${successCount} archivos subidos, ${failCount} fallaron. Por favor intenta de nuevo.`);
       }
-      
+
       setFiles([]);
     } catch {
       alert('Subida falló. Por favor verifica tu conexión e intenta de nuevo.');
@@ -101,17 +101,17 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4">
+    <div className="mobile-min-h bg-gradient-to-br from-pink-50 to-purple-50 p-4 pb-safe">
       <div className="max-w-md mx-auto">
         {/* Header */}
-        <div className="text-center mb-8 pt-8">
+        <div className="text-center mb-8 pt-8 pt-safe">
           <div className="flex items-center justify-center mb-4">
             <Heart className="w-8 h-8 text-pink-500 mr-2" />
             <h1 className="text-3xl font-bold text-gray-800">Recuerdos de boda</h1>
           </div>
           <p className="text-gray-600">¡Comparte tus fotos y videos de nuestro día especial!</p>
-          
-          <Link 
+
+          <Link
             href="/gallery"
             className="inline-flex items-center mt-4 text-pink-600 font-medium"
           >
@@ -132,7 +132,7 @@ export default function Home() {
           />
 
           {files.length === 0 ? (
-            <div 
+            <div
               onClick={triggerFileInput}
               className="border-2 border-dashed border-pink-300 rounded-xl p-8 text-center cursor-pointer hover:border-pink-400 transition-colors"
             >
@@ -150,7 +150,7 @@ export default function Home() {
                 <Users className="w-5 h-5 mr-2" />
                 Archivos seleccionados ({files.length})
               </h3>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 {files.map((file, index) => (
                   <div key={index} className="relative">
@@ -206,7 +206,7 @@ export default function Home() {
         {/* Instructions */}
         <div className="bg-white/80 rounded-xl p-4 text-center">
           <p className="text-sm text-gray-600">
-            💝 ¡Gracias por ayudarnos a capturar nuestros momentos especiales! 
+            💝 ¡Gracias por ayudarnos a capturar nuestros momentos especiales!
             Tus fotos y videos nos ayudarán a recordar este día mágico para siempre.
           </p>
         </div>

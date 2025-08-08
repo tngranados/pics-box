@@ -1,11 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  /* Use a soft pink background (tailwind pink-50) so iOS Safari UI matches */
+  --background: #fdf2f8;
   --foreground: #171717;
 }
 
-@theme inline {
+/* Expose CSS vars that Tailwind can consume via arbitrary values/classes if needed */
+:root {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -19,8 +21,34 @@
   }
 }
 
-body {
+/* Ensure the viewport background is never white on iOS
+   and that the app fills the screen including safe areas */
+html, body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100dvh;
+  /* Fallbacks for older Safari */
+  min-height: -webkit-fill-available;
 }
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  /* Reduce rubber-banding flash by matching overscroll bg */
+  overscroll-behavior-y: none;
+}
+
+/* When fullscreen media viewer is open, force black chrome */
+html.fullscreen-open, body.fullscreen-open {
+  background: #000;
+}
+
+/* Safe area utilities */
+.pt-safe { padding-top: env(safe-area-inset-top, 0); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0); }
+.pl-safe { padding-left: env(safe-area-inset-left, 0); }
+.pr-safe { padding-right: env(safe-area-inset-right, 0); }
+.px-safe { padding-left: env(safe-area-inset-left, 0); padding-right: env(safe-area-inset-right, 0); }
+.py-safe { padding-top: env(safe-area-inset-top, 0); padding-bottom: env(safe-area-inset-bottom, 0); }
+
+/* Helper class for mobile full height */
+.mobile-min-h { min-height: 100dvh; min-height: -webkit-fill-available; }

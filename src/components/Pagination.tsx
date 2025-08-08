@@ -59,29 +59,29 @@ export default function Pagination({ currentPage, totalPages, onPageChange, clas
   const visiblePages = getVisiblePages();
 
   return (
-    <div className={`flex items-center justify-center gap-4 p-8 ${className}`}>
+    <div className={`flex items-center justify-center gap-3 sm:gap-4 p-4 sm:p-8 ${className}`}>
       {/* Previous button */}
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="flex items-center justify-center w-12 h-12 px-4 rounded-lg bg-white border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:enabled:bg-gray-50 hover:enabled:border-gray-300 transition-colors duration-150"
+  className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 px-3 sm:px-4 rounded-lg bg-white border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:enabled:bg-gray-50 hover:enabled:border-gray-300 transition-colors duration-150"
         aria-label="Página anterior"
       >
         <ChevronLeft className="w-5 h-5 text-gray-600" />
       </button>
 
       {/* Page numbers */}
-      <div className="flex items-center gap-4 mx-4">
+  <div className="flex items-center gap-2 sm:gap-4 mx-2 sm:mx-4">
         {visiblePages.map((page, index) => (
           <div key={index}>
             {page === '...' ? (
-              <span className="flex items-center justify-center w-12 h-12 text-gray-400 text-base">
+              <span className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 text-gray-400 text-base">
                 ...
               </span>
             ) : (
               <button
                 onClick={() => onPageChange(page as number)}
-                className={`flex items-center justify-center w-12 h-12 px-4 rounded-lg text-base font-medium transition-colors duration-150 cursor-pointer ${
+                className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 px-3 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-colors duration-150 cursor-pointer ${
                   currentPage === page
                     ? 'bg-pink-500 text-white'
                     : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
@@ -100,7 +100,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange, clas
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="flex items-center justify-center w-12 h-12 px-4 rounded-lg bg-white border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:enabled:bg-gray-50 hover:enabled:border-gray-300 transition-colors duration-150"
+  className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 px-3 sm:px-4 rounded-lg bg-white border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:enabled:bg-gray-50 hover:enabled:border-gray-300 transition-colors duration-150"
         aria-label="Página siguiente"
       >
         <ChevronRight className="w-5 h-5 text-gray-600" />

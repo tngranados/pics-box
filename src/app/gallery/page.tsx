@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Download, Heart, X, Play } from 'lucide-react';
 import Link from 'next/link';
@@ -41,6 +42,11 @@ export default function Gallery() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loadingAllMedia, setLoadingAllMedia] = useState(false);
+  // Store originals to restore after fullscreen closes or route changes
+  const originalThemeColorRef = useRef<string | null>(null);
+  const themeMetaExistedRef = useRef<boolean>(false);
+  const originalViewportRef = useRef<string | null>(null);
+  const originalBodyStylesRef = useRef<{ overflow: string; position: string; width: string; height: string } | null>(null);
 
   useEffect(() => {
     fetchMedia(currentPage);
@@ -69,7 +75,7 @@ export default function Gallery() {
 
   const fetchAllMedia = async (): Promise<MediaFile[]> => {
     if (allMedia.length > 0) return allMedia; // Already loaded
-    
+
     try {
       setLoadingAllMedia(true);
       // Fetch all media for the viewer by getting all pages
@@ -80,7 +86,7 @@ export default function Gallery() {
       while (hasMore) {
         const response = await fetch(`/api/gallery?page=${page}&limit=100`);
         if (!response.ok) break;
-        
+
         const data = await response.json();
         allFiles.push(...(data.files || []));
         hasMore = data.pagination.hasNextPage;
@@ -121,49 +127,150 @@ export default function Gallery() {
 
   const openFullscreen = async (index: number) => {
     const selectedItem = media[index];
-    
+
     // First load all media if not already loaded
     const loadedMedia = await fetchAllMedia();
-    
+
     // Find the global index using the returned media array
     const globalIndex = loadedMedia.findIndex(item => item.key === selectedItem.key);
-    
+
     // Set both states with the correct values
     setSelectedMedia(selectedItem);
     setCurrentIndex(globalIndex >= 0 ? globalIndex : 0);
-    
+
+    // Save originals
+    const themeMeta = document.querySelector('meta[name=theme-color]') as HTMLMetaElement | null;
+    themeMetaExistedRef.current = !!themeMeta;
+    originalThemeColorRef.current = themeMeta?.getAttribute('content') ?? null;
+
+    const viewportMeta = document.querySelector('meta[name=viewport]') as HTMLMetaElement | null;
+    originalViewportRef.current = viewportMeta?.getAttribute('content') ?? null;
+
+    originalBodyStylesRef.current = {
+      overflow: document.body.style.overflow || '',
+      position: document.body.style.position || '',
+      width: document.body.style.width || '',
+      height: document.body.style.height || '',
+    };
+
     // Prevent body scrolling and hide browser UI
     document.body.style.overflow = 'hidden';
     document.body.style.position = 'fixed';
     document.body.style.width = '100%';
     document.body.style.height = '100%';
-    
+    document.documentElement.classList.add('fullscreen-open');
+    document.body.classList.add('fullscreen-open');
+
     // Try to hide address bar on mobile
     window.scrollTo(0, 1);
     setTimeout(() => window.scrollTo(0, 1), 100);
-    
+
     // Add meta viewport changes for fullscreen
-    const viewport = document.querySelector('meta[name=viewport]');
+    const viewport = document.querySelector('meta[name=viewport]') as HTMLMetaElement | null;
     if (viewport) {
       viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, minimal-ui');
     }
+
+    // Force theme-color to black while fullscreen to avoid white bars
+    let themeMeta2 = document.querySelector('meta[name=theme-color]') as HTMLMetaElement | null;
+    if (!themeMeta2) {
+      themeMeta2 = document.createElement('meta');
+      themeMeta2.name = 'theme-color';
+      document.head.appendChild(themeMeta2);
+    }
+    themeMeta2.setAttribute('content', '#000000');
   };
 
   const closeFullscreen = () => {
     console.log('Close button clicked'); // Debug log
     setSelectedMedia(null);
     // Restore body scrolling and position
-    document.body.style.overflow = 'unset';
-    document.body.style.position = 'unset';
-    document.body.style.width = 'unset';
-    document.body.style.height = 'unset';
-    
+    if (originalBodyStylesRef.current) {
+      const { overflow, position, width, height } = originalBodyStylesRef.current;
+      document.body.style.overflow = overflow;
+      document.body.style.position = position;
+      document.body.style.width = width;
+      document.body.style.height = height;
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    }
+  document.documentElement.classList.remove('fullscreen-open');
+  document.body.classList.remove('fullscreen-open');
+
     // Restore original viewport
-    const viewport = document.querySelector('meta[name=viewport]');
+    const viewport = document.querySelector('meta[name=viewport]') as HTMLMetaElement | null;
     if (viewport) {
-      viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+      const originalViewport = originalViewportRef.current ?? 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+      viewport.setAttribute('content', originalViewport);
+    }
+
+    // Restore theme-color to previous value or a sensible default
+    let themeMeta = document.querySelector('meta[name=theme-color]') as HTMLMetaElement | null;
+    const prev = originalThemeColorRef.current;
+    const existed = themeMetaExistedRef.current;
+    if (prev) {
+      if (!themeMeta) {
+        themeMeta = document.createElement('meta');
+        themeMeta.name = 'theme-color';
+        document.head.appendChild(themeMeta);
+      }
+      themeMeta.setAttribute('content', prev);
+    } else if (!existed && themeMeta) {
+      // We created it; remove it
+      themeMeta.parentElement?.removeChild(themeMeta);
+    } else {
+      // Fallback: set based on color scheme
+      const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const fallback = isDark ? '#000000' : '#fdf2f8';
+      if (!themeMeta) {
+        themeMeta = document.createElement('meta');
+        themeMeta.name = 'theme-color';
+        document.head.appendChild(themeMeta);
+      }
+      themeMeta.setAttribute('content', fallback);
     }
   };
+
+  // Safety net: cleanup on unmount/navigation
+  useEffect(() => {
+    return () => {
+      // If overlay was open, ensure restoration
+      document.documentElement.classList.remove('fullscreen-open');
+      document.body.classList.remove('fullscreen-open');
+      if (originalBodyStylesRef.current) {
+        const { overflow, position, width, height } = originalBodyStylesRef.current;
+        document.body.style.overflow = overflow;
+        document.body.style.position = position;
+        document.body.style.width = width;
+        document.body.style.height = height;
+      } else {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+      }
+      const viewport = document.querySelector('meta[name=viewport]') as HTMLMetaElement | null;
+      if (viewport && originalViewportRef.current) {
+        viewport.setAttribute('content', originalViewportRef.current);
+      }
+      let themeMeta = document.querySelector('meta[name=theme-color]') as HTMLMetaElement | null;
+      const prev = originalThemeColorRef.current;
+      const existed = themeMetaExistedRef.current;
+      if (prev) {
+        if (!themeMeta) {
+          themeMeta = document.createElement('meta');
+          themeMeta.name = 'theme-color';
+          document.head.appendChild(themeMeta);
+        }
+        themeMeta.setAttribute('content', prev);
+      } else if (!existed && themeMeta) {
+        themeMeta.parentElement?.removeChild(themeMeta);
+      }
+    };
+  }, []);
 
   // Add escape key handler and fullscreen management
   useEffect(() => {
@@ -197,7 +304,7 @@ export default function Gallery() {
     document.addEventListener('keydown', handleEscape);
     window.addEventListener('orientationchange', handleOrientationChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('keydown', handleEscape);
       window.removeEventListener('orientationchange', handleOrientationChange);
@@ -207,7 +314,7 @@ export default function Gallery() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
+  <div className="mobile-min-h bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center pb-safe pt-safe">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-pink-300 border-t-pink-600 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando hermosos recuerdos...</p>
@@ -217,10 +324,10 @@ export default function Gallery() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4">
+    <div className="mobile-min-h bg-gradient-to-br from-pink-50 to-purple-50 p-4 pb-safe">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center mb-6 pt-4">
+        <div className="flex items-center mb-6 pt-4 pt-safe">
           <Link href="/" className="mr-4">
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </Link>
@@ -324,9 +431,9 @@ export default function Gallery() {
 
         {/* Swiper-based Full-screen Gallery */}
         {selectedMedia && mounted && createPortal(
-          <div 
+          <div
             className="fixed bg-black"
-            style={{ 
+            style={{
               zIndex: 999999,
               position: 'fixed',
               top: 0,
@@ -335,7 +442,7 @@ export default function Gallery() {
               bottom: 0,
               width: '100vw',
               height: '100dvh', // Dynamic viewport height for mobile
-              minHeight: '100dvh',
+              minHeight: '-webkit-fill-available',
               overflow: 'hidden',
               touchAction: 'manipulation',
               WebkitUserSelect: 'none',
@@ -367,9 +474,9 @@ export default function Gallery() {
           >
             <div className="relative w-full h-full">
               {/* Header with close and download buttons */}
-              <div 
-                className="absolute top-0 left-0 right-0 flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent" 
-                style={{ 
+              <div
+                className="absolute top-0 left-0 right-0 flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent pt-safe px-safe"
+                style={{
                   zIndex: 1000,
                   paddingTop: 'max(1rem, env(safe-area-inset-top, 1rem))',
                   paddingLeft: 'max(1rem, env(safe-area-inset-left, 1rem))',
@@ -481,8 +588,8 @@ export default function Gallery() {
               )}
 
               {/* Media info overlay */}
-              <div 
-                className="absolute bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-black/80 to-transparent"
+              <div
+                className="absolute bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-black/80 to-transparent pb-safe px-safe"
                 style={{
                   paddingLeft: 'max(1rem, env(safe-area-inset-left, 1rem))',
                   paddingRight: 'max(1rem, env(safe-area-inset-right, 1rem))',
