@@ -207,7 +207,17 @@ export default function Gallery() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
+      <div 
+        className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center"
+        style={{
+          minHeight: '100vh',
+          minHeight: '100dvh',
+          paddingTop: 'max(1rem, env(safe-area-inset-top))',
+          paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+          paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+          paddingRight: 'max(1rem, env(safe-area-inset-right))'
+        }}
+      >
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-pink-300 border-t-pink-600 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando hermosos recuerdos...</p>
@@ -217,7 +227,17 @@ export default function Gallery() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4">
+    <div 
+      className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4"
+      style={{
+        minHeight: '100vh',
+        minHeight: '100dvh',
+        paddingTop: 'max(1rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+        paddingRight: 'max(1rem, env(safe-area-inset-right))'
+      }}
+    >
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center mb-6 pt-4">
@@ -339,7 +359,17 @@ export default function Gallery() {
               overflow: 'hidden',
               touchAction: 'manipulation',
               WebkitUserSelect: 'none',
-              userSelect: 'none'
+              userSelect: 'none',
+              // Extend background to all safe areas
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+              paddingLeft: 'env(safe-area-inset-left, 0px)',
+              paddingRight: 'env(safe-area-inset-right, 0px)',
+              // Ensure background covers safe areas
+              marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
+              marginBottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))',
+              marginLeft: 'calc(-1 * env(safe-area-inset-left, 0px))',
+              marginRight: 'calc(-1 * env(safe-area-inset-right, 0px))'
             }}
             onClick={(e) => {
               // Close if clicking on the background (not on the swiper content)
