@@ -101,7 +101,16 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4">
+    <div 
+      className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4" 
+      style={{
+        minHeight: '100dvh',
+        paddingTop: 'max(1rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+        paddingRight: 'max(1rem, env(safe-area-inset-right))'
+      }}
+    >
       <div className="max-w-md mx-auto">
         {/* Header */}
         <div className="text-center mb-8 pt-8">
