@@ -576,7 +576,7 @@ export default function Gallery() {
                     console.log('Close button touchstart'); // Debug
                     closeFullscreen();
                   }}
-                  className="text-white bg-red-600 p-4 rounded-full hover:bg-red-700 transition-all cursor-pointer select-none"
+                  className="text-white bg-black/50 backdrop-blur-sm p-3 rounded-full hover:bg-black/70 transition-all cursor-pointer select-none border border-white/20"
                   style={{ zIndex: 1001 }}
                 >
                   <X className="w-6 h-6" />
@@ -629,8 +629,11 @@ export default function Gallery() {
                     enabled: true,
                   }}
                   pagination={{
-                    enabled: true,
+                    enabled: allMedia.length <= 10,
                     clickable: true,
+                    type: 'fraction',
+                    formatFractionCurrent: (number) => number,
+                    formatFractionTotal: (number) => number,
                   }}
                   zoom={{
                     maxRatio: 3,
@@ -673,7 +676,8 @@ export default function Gallery() {
                   style={{
                     '--swiper-navigation-color': '#ffffff',
                     '--swiper-pagination-color': '#ffffff',
-                    '--swiper-navigation-size': '44px',
+                    '--swiper-navigation-size': '50px',
+                    '--swiper-navigation-sides-offset': '20px',
                   } as React.CSSProperties}
                 >
                   {allMedia.map((item, index) => (

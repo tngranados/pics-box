@@ -52,3 +52,47 @@ html.fullscreen-open, body.fullscreen-open {
 
 /* Helper class for mobile full height */
 .mobile-min-h { min-height: 100dvh; min-height: -webkit-fill-available; }
+
+/* Swiper navigation improvements for mobile */
+.swiper-button-next,
+.swiper-button-prev {
+  background: rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 50% !important;
+  width: 50px !important;
+  height: 50px !important;
+  margin-top: -25px !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.swiper-button-next:after,
+.swiper-button-prev:after {
+  font-size: 20px !important;
+  font-weight: bold !important;
+  color: white !important;
+}
+
+/* Ensure arrows are visible on mobile */
+@media (max-width: 768px) {
+  .swiper-button-next,
+  .swiper-button-prev {
+    display: flex !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Swiper pagination improvements */
+.swiper-pagination-fraction {
+  bottom: auto !important;
+  top: 20px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: white !important;
+  padding: 8px 16px !important;
+  border-radius: 20px !important;
+  font-size: 14px !important;
+  backdrop-filter: blur(4px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
