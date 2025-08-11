@@ -4,7 +4,8 @@
       "Bash(npm run build:*)",
       "Bash(npm run lint)",
       "Bash(timeout 10 npm run dev)",
-      "mcp__playwright__*"
+      "mcp__playwright__*",
+      "Bash(npm run dev:*)"
     ],
     "deny": []
   }

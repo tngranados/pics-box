@@ -84,19 +84,24 @@ export default function Gallery() {
 
     try {
       setLoadingAllMedia(true);
-      // Fetch all media for the viewer by getting all pages
+      // Fetch all media for the viewer by getting all pages with smaller limits for iOS Safari
       const allFiles: MediaFile[] = [];
       let page = 1;
       let hasMore = true;
 
       while (hasMore) {
-        const response = await fetch(`/api/gallery?page=${page}&limit=100`);
+        const response = await fetch(`/api/gallery?page=${page}&limit=50`); // Reduced limit for memory
         if (!response.ok) break;
 
         const data = await response.json();
         allFiles.push(...(data.files || []));
         hasMore = data.pagination.hasNextPage;
         page++;
+        
+        // Add small delay to prevent overwhelming the browser
+        if (hasMore) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
       }
 
       setAllMedia(allFiles);
@@ -109,21 +114,36 @@ export default function Gallery() {
     }
   };
 
-  // Clean up media cache
+  // Clean up media cache - aggressive cleanup for iOS Safari
   const clearMediaCache = () => {
     // Clear video elements
     videoRefs.current.forEach((video) => {
       video.pause();
-      video.src = '';
+      video.removeAttribute('src');
       video.load();
+      // Force garbage collection hint
+      video.src = '';
     });
     videoRefs.current.clear();
 
     // Clear image cache tracking
     imageCache.current.clear();
 
+    // Force cleanup of all img elements in the DOM
+    const allImages = document.querySelectorAll('.swiper-slide img');
+    allImages.forEach((img) => {
+      const imgElement = img as HTMLImageElement;
+      imgElement.src = '';
+      imgElement.removeAttribute('src');
+    });
+
     // Clear allMedia to free memory
     setAllMedia([]);
+    
+    // Force garbage collection if available (iOS Safari specific)
+    if ((window as any).gc) {
+      (window as any).gc();
+    }
   };
 
   const handlePageChange = (page: number) => {
@@ -594,8 +614,16 @@ export default function Gallery() {
                   keyboard={{
                     enabled: true,
                   }}
+                  // iOS Safari memory optimizations
+                  preloadImages={false}
+                  watchSlidesProgress={true}
+                  centeredSlides={true}
+                  allowTouchMove={true}
                   onSlideChange={(swiper) => {
                     setCurrentIndex(swiper.activeIndex);
+                    
+                    // Force re-render to show/hide images based on distance
+                    // The conditional rendering will handle memory management automatically
                   }}
                   className="w-full h-full"
                   style={{
@@ -608,30 +636,56 @@ export default function Gallery() {
                     <SwiperSlide key={item.key} className="flex items-center justify-center">
                       <div className="swiper-zoom-container w-full h-full flex items-center justify-center">
                         {item.type === 'image' ? (
-                          <Image
-                            src={item.optimized_url || item.url}
-                            alt={item.fileName}
-                            width={1920}
-                            height={1080}
-                            className="max-w-full max-h-full object-contain"
-                            priority={Math.abs(index - currentIndex) <= 1} // Only prioritize current and adjacent slides
-                            loading={Math.abs(index - currentIndex) <= 2 ? 'eager' : 'lazy'} // Lazy load distant slides
-                          />
+                          Math.abs(index - currentIndex) <= 2 ? (
+                            <Image
+                              src={item.optimized_url || item.url}
+                              alt={item.fileName}
+                              width={1920}
+                              height={1080}
+                              className="max-w-full max-h-full object-contain"
+                              priority={index === currentIndex} // Only prioritize current slide
+                              loading={Math.abs(index - currentIndex) <= 1 ? 'eager' : 'lazy'}
+                              unoptimized // Prevent Next.js optimization conflicts
+                              onError={(e) => {
+                                // Fallback to original if optimized fails
+                                const target = e.target as HTMLImageElement;
+                                if (target.src !== item.url) {
+                                  target.src = item.url;
+                                }
+                              }}
+                            />
+                          ) : (
+                            // Placeholder for distant images to save memory
+                            <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white text-sm">
+                              Swipe to load image
+                            </div>
+                          )
                         ) : (
-                          <video
-                            ref={(el) => {
-                              if (el) {
-                                videoRefs.current.set(`fullscreen-${item.key}`, el);
-                              } else {
-                                videoRefs.current.delete(`fullscreen-${item.key}`);
-                              }
-                            }}
-                            src={item.optimized_url || item.url}
-                            controls
-                            className="max-w-full max-h-full object-contain"
-                            playsInline
-                            preload={Math.abs(index - currentIndex) <= 1 ? 'metadata' : 'none'} // Only preload nearby videos
-                          />
+                          Math.abs(index - currentIndex) <= 1 ? (
+                            <video
+                              ref={(el) => {
+                                if (el) {
+                                  videoRefs.current.set(`fullscreen-${item.key}`, el);
+                                } else {
+                                  videoRefs.current.delete(`fullscreen-${item.key}`);
+                                }
+                              }}
+                              src={item.optimized_url || item.url}
+                              controls
+                              className="max-w-full max-h-full object-contain"
+                              playsInline
+                              preload="none" // Always use none for iOS Safari memory
+                              muted // Required for autoplay on iOS
+                            />
+                          ) : (
+                            // Placeholder for distant videos to save memory
+                            <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white text-sm">
+                              <div className="text-center">
+                                <Play className="w-12 h-12 mx-auto mb-2" />
+                                Swipe to load video
+                              </div>
+                            </div>
+                          )
                         )}
                       </div>
                     </SwiperSlide>
