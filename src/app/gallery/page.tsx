@@ -45,6 +45,7 @@ export default function Gallery() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loadingAllMedia, setLoadingAllMedia] = useState(false);
+  const [isLowMemoryMode, setIsLowMemoryMode] = useState(false);
   // Memory management refs
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const imageCache = useRef<Set<string>>(new Set());
@@ -90,7 +91,7 @@ export default function Gallery() {
       let hasMore = true;
 
       while (hasMore) {
-        const response = await fetch(`/api/gallery?page=${page}&limit=50`); // Reduced limit for memory
+        const response = await fetch(`/api/gallery?page=${page}&limit=20`); // Very small limit for iOS Safari
         if (!response.ok) break;
 
         const data = await response.json();
@@ -172,6 +173,28 @@ export default function Gallery() {
 
   const openFullscreen = async (index: number) => {
     const selectedItem = media[index];
+
+    // Check available memory before loading (iOS Safari specific)
+    if ('memory' in performance && (performance as unknown as { memory?: { jsHeapSizeLimit: number; usedJSHeapSize: number } }).memory) {
+      const memInfo = (performance as unknown as { memory: { jsHeapSizeLimit: number; usedJSHeapSize: number } }).memory;
+      const availableMemory = memInfo.jsHeapSizeLimit - memInfo.usedJSHeapSize;
+      
+      // If less than 50MB available, use single image mode
+      if (availableMemory < 50 * 1024 * 1024) {
+        console.warn('Low memory detected, using single image mode');
+        setIsLowMemoryMode(true);
+        setSelectedMedia(selectedItem);
+        setCurrentIndex(index);
+        setAllMedia([selectedItem]); // Only load current image
+        
+        // Apply fullscreen styles
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        document.body.style.height = '100%';
+        return;
+      }
+    }
 
     // First load all media if not already loaded
     const loadedMedia = await fetchAllMedia();
@@ -586,6 +609,14 @@ export default function Gallery() {
                 </button>
               </div>
 
+              {/* Low memory warning */}
+              {isLowMemoryMode && (
+                <div className="absolute top-16 left-4 right-4 z-50 bg-yellow-600 text-white p-3 rounded-lg text-sm">
+                  <p className="font-medium">Modo de memoria limitada</p>
+                  <p className="text-xs mt-1">Solo se muestra una imagen para evitar bloqueos en Safari</p>
+                </div>
+              )}
+
               {/* Swiper Gallery */}
               {loadingAllMedia ? (
                 <div className="flex items-center justify-center w-full h-full text-white">
@@ -621,8 +652,32 @@ export default function Gallery() {
                   onSlideChange={(swiper) => {
                     setCurrentIndex(swiper.activeIndex);
                     
-                    // Force re-render to show/hide images based on distance
-                    // The conditional rendering will handle memory management automatically
+                    // Aggressive cleanup after every slide change for iOS Safari
+                    setTimeout(() => {
+                      // Force cleanup of all non-current images
+                      const allImages = document.querySelectorAll('.swiper-slide img');
+                      allImages.forEach((img, idx) => {
+                        const imgElement = img as HTMLImageElement;
+                        if (idx !== swiper.activeIndex && imgElement.src) {
+                          imgElement.src = '';
+                          imgElement.removeAttribute('src');
+                        }
+                      });
+                      
+                      // Force cleanup of all videos
+                      videoRefs.current.forEach((video, key) => {
+                        if (!key.includes(`fullscreen-${allMedia[swiper.activeIndex]?.key}`)) {
+                          video.pause();
+                          video.src = '';
+                          video.load();
+                        }
+                      });
+                      
+                      // Force garbage collection if available
+                      if ('gc' in window && typeof (window as unknown as { gc?: () => void }).gc === 'function') {
+                        (window as unknown as { gc: () => void }).gc();
+                      }
+                    }, 100);
                   }}
                   className="w-full h-full"
                   style={{
@@ -635,20 +690,22 @@ export default function Gallery() {
                     <SwiperSlide key={item.key} className="flex items-center justify-center">
                       <div className="swiper-zoom-container w-full h-full flex items-center justify-center">
                         {item.type === 'image' ? (
-                          Math.abs(index - currentIndex) <= 2 ? (
+                          index === currentIndex ? (
                             <Image
-                              src={item.optimized_url || item.url}
+                              src={item.thumbnail_url || item.optimized_url || item.url}
                               alt={item.fileName}
-                              width={1920}
-                              height={1080}
+                              width={800}
+                              height={600}
                               className="max-w-full max-h-full object-contain"
-                              priority={index === currentIndex} // Only prioritize current slide
-                              loading={Math.abs(index - currentIndex) <= 1 ? 'eager' : 'lazy'}
+                              priority={true} // Always prioritize current slide
+                              loading="eager"
                               unoptimized // Prevent Next.js optimization conflicts
                               onError={(e) => {
-                                // Fallback to original if optimized fails
+                                // Fallback chain: thumbnail -> optimized -> original
                                 const target = e.target as HTMLImageElement;
-                                if (target.src !== item.url) {
+                                if (target.src === (item.thumbnail_url || item.optimized_url || item.url)) {
+                                  target.src = item.optimized_url || item.url;
+                                } else if (target.src === (item.optimized_url || item.url)) {
                                   target.src = item.url;
                                 }
                               }}
@@ -660,7 +717,7 @@ export default function Gallery() {
                             </div>
                           )
                         ) : (
-                          Math.abs(index - currentIndex) <= 1 ? (
+                          index === currentIndex ? (
                             <video
                               ref={(el) => {
                                 if (el) {
