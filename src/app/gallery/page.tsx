@@ -7,7 +7,7 @@ import { ArrowLeft, Download, Heart, X, Play } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination as SwiperPagination, Zoom, Keyboard } from 'swiper/modules';
+import { Navigation, Pagination as SwiperPagination, Zoom, Keyboard, Virtual } from 'swiper/modules';
 import Pagination from '@/components/Pagination';
 import 'swiper/css';
 import 'swiper/css/navigation';
@@ -621,7 +621,7 @@ export default function Gallery() {
                 </div>
               ) : (
                 <Swiper
-                  modules={[Navigation, SwiperPagination, Zoom, Keyboard]}
+                  modules={[Navigation, SwiperPagination, Zoom, Keyboard, Virtual]}
                   spaceBetween={0}
                   slidesPerView={1}
                   initialSlide={currentIndex}
@@ -638,6 +638,13 @@ export default function Gallery() {
                   }}
                   keyboard={{
                     enabled: true,
+                  }}
+                  // Enable Virtual Slides to prevent memory crashes
+                  virtual={{
+                    enabled: true,
+                    addSlidesBefore: 2,
+                    addSlidesAfter: 2,
+                    cache: false, // Disable cache to save memory on mobile
                   }}
                   // iOS Safari memory optimizations
                   watchSlidesProgress={true}
@@ -670,59 +677,46 @@ export default function Gallery() {
                   } as React.CSSProperties}
                 >
                   {allMedia.map((item, index) => (
-                    <SwiperSlide key={item.key} className="flex items-center justify-center">
+                    <SwiperSlide key={item.key} virtualIndex={index} className="flex items-center justify-center">
                       <div className="swiper-zoom-container w-full h-full flex items-center justify-center">
                         {item.type === 'image' ? (
-                          Math.abs(index - currentIndex) <= 1 ? (
-                            <Image
-                              src={item.optimized_url || item.url}
-                              alt={item.fileName}
-                              width={1200}
-                              height={900}
-                              className="max-w-full max-h-full object-contain"
-                              priority={index === currentIndex}
-                              loading={index === currentIndex ? "eager" : "lazy"}
-                              unoptimized // Prevent Next.js optimization conflicts
-                              onError={(e) => {
-                                // Fallback to original if optimized fails
-                                const target = e.target as HTMLImageElement;
-                                if (target.src !== item.url) {
-                                  target.src = item.url;
-                                }
-                              }}
-                            />
-                          ) : (
-                            // Placeholder for distant images to save memory
-                            <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white text-sm">
-                              Swipe to load image
-                            </div>
-                          )
+                          <Image
+                            src={item.optimized_url || item.url}
+                            alt={item.fileName}
+                            width={800}
+                            height={600}
+                            className="max-w-full max-h-full object-contain"
+                            priority={index === currentIndex}
+                            loading={index === currentIndex ? "eager" : "lazy"}
+                            unoptimized // Prevent Next.js optimization conflicts
+                            onError={(e) => {
+                              // Fallback to original if optimized fails
+                              const target = e.target as HTMLImageElement;
+                              if (target.src !== item.url) {
+                                target.src = item.url;
+                              }
+                            }}
+                          />
                         ) : (
-                          Math.abs(index - currentIndex) <= 1 ? (
-                            <video
-                              ref={(el) => {
-                                if (el) {
-                                  videoRefs.current.set(`fullscreen-${item.key}`, el);
-                                } else {
-                                  videoRefs.current.delete(`fullscreen-${item.key}`);
+                          <video
+                            key={`video-${index}`}
+                            src={item.optimized_url || item.url}
+                            controls
+                            className="max-w-full max-h-full object-contain"
+                            playsInline
+                            preload="none"
+                            muted
+                            onLoadStart={() => {
+                              // Clean up other video elements when new one starts loading
+                              videoRefs.current.forEach((video, key) => {
+                                if (!key.includes(item.key)) {
+                                  video.pause();
+                                  video.src = '';
+                                  video.load();
                                 }
-                              }}
-                              src={item.optimized_url || item.url}
-                              controls
-                              className="max-w-full max-h-full object-contain"
-                              playsInline
-                              preload="none" // Always use none for iOS Safari memory
-                              muted // Required for autoplay on iOS
-                            />
-                          ) : (
-                            // Placeholder for distant videos to save memory
-                            <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white text-sm">
-                              <div className="text-center">
-                                <Play className="w-12 h-12 mx-auto mb-2" />
-                                Swipe to load video
-                              </div>
-                            </div>
-                          )
+                              });
+                            }}
+                          />
                         )}
                       </div>
                     </SwiperSlide>
