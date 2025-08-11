@@ -15,11 +15,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ key: string }> }
 ) {
-  try {
-    const { key } = await params;
+  const { key } = await params;
 
-    // Decode the key parameter since it comes URL encoded from the route
-    const decodedKey = decodeURIComponent(key);
+  // Decode the key parameter since it comes URL encoded from the route
+  const decodedKey = decodeURIComponent(key);
+
+  try {
     console.log('Media proxy request for encoded key:', key);
     console.log('Media proxy request for decoded key:', decodedKey);
 
@@ -106,9 +107,10 @@ export async function HEAD(
   request: NextRequest,
   { params }: { params: Promise<{ key: string }> }
 ) {
+  const { key } = await params;
+  const decodedKey = decodeURIComponent(key);
+
   try {
-    const { key } = await params;
-    const decodedKey = decodeURIComponent(key);
 
     console.log('HEAD request for:', decodedKey);
 
@@ -145,10 +147,7 @@ export async function HEAD(
   }
 }
 
-export async function OPTIONS(
-  request: NextRequest,
-  { params }: { params: Promise<{ key: string }> }
-) {
+export async function OPTIONS() {
   const headers = new Headers();
   headers.set('Access-Control-Allow-Origin', '*');
   headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');

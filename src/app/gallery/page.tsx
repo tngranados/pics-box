@@ -502,7 +502,7 @@ export default function Gallery() {
                             video.currentTime = seekTime;
                           }}
                           onSeeked={(e) => {
-                            const placeholder = e.target.parentElement?.querySelector('.bg-gradient-to-br') as HTMLElement;
+                            const placeholder = (e.target as HTMLVideoElement).parentElement?.querySelector('.bg-gradient-to-br') as HTMLElement;
                             if (placeholder) {
                               placeholder.style.display = 'none';
                             }
