@@ -35,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" style={{ backgroundColor: '#fdf2f8' }}>
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -43,9 +43,19 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Antonio y María" />
   {/* Ensure Safari knows we support both schemes */}
   <meta name="color-scheme" content="light dark" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+              });
+            `,
+          }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        style={{ backgroundColor: '#fdf2f8' }}
       >
         {children}
       </body>

@@ -26,15 +26,33 @@
 html, body {
   background: var(--background);
   color: var(--foreground);
+  min-height: 100vh;
   min-height: 100dvh;
   /* Fallbacks for older Safari */
   min-height: -webkit-fill-available;
+  /* Ensure background extends beyond viewport on overscroll */
+  background-attachment: fixed;
 }
 
 body {
   font-family: Arial, Helvetica, sans-serif;
   /* Reduce rubber-banding flash by matching overscroll bg */
   overscroll-behavior-y: none;
+}
+
+/* Chrome Android specific fixes */
+@supports (-webkit-appearance: none) {
+  html {
+    /* Force background to extend beyond viewport in Chrome */
+    background: var(--background) !important;
+    background-size: 100% 200vh !important;
+  }
+  
+  body {
+    /* Ensure body background matches and extends */
+    background: var(--background) !important;
+    background-size: 100% 200vh !important;
+  }
 }
 
 /* When fullscreen media viewer is open, force black chrome */
