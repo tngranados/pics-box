@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Download, Heart, X, Play } from 'lucide-react';
 import Link from 'next/link';
@@ -115,7 +115,7 @@ export default function Gallery() {
   };
 
   // Clean up media cache - aggressive cleanup for iOS Safari
-  const clearMediaCache = () => {
+  const clearMediaCache = useCallback(() => {
     // Clear video elements
     videoRefs.current.forEach((video) => {
       video.pause();
@@ -141,10 +141,10 @@ export default function Gallery() {
     setAllMedia([]);
     
     // Force garbage collection if available (iOS Safari specific)
-    if ((window as any).gc) {
-      (window as any).gc();
+    if ('gc' in window && typeof (window as unknown as { gc?: () => void }).gc === 'function') {
+      (window as unknown as { gc: () => void }).gc();
     }
-  };
+  }, []);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -226,7 +226,7 @@ export default function Gallery() {
     themeMeta2.setAttribute('content', '#000000');
   };
 
-  const closeFullscreen = () => {
+  const closeFullscreen = useCallback(() => {
     console.log('Close button clicked'); // Debug log
 
     // Clean up media resources before closing
@@ -281,7 +281,7 @@ export default function Gallery() {
       }
       themeMeta.setAttribute('content', fallback);
     }
-  };
+  }, [clearMediaCache]);
 
   // Safety net: cleanup on unmount/navigation
   useEffect(() => {
@@ -322,7 +322,7 @@ export default function Gallery() {
         themeMeta.parentElement?.removeChild(themeMeta);
       }
     };
-  }, []);
+  }, [clearMediaCache]);
 
   // Add escape key handler and fullscreen management
   useEffect(() => {
@@ -362,7 +362,7 @@ export default function Gallery() {
       window.removeEventListener('orientationchange', handleOrientationChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [selectedMedia]);
+  }, [selectedMedia, closeFullscreen]);
 
   if (loading) {
     return (
@@ -615,7 +615,6 @@ export default function Gallery() {
                     enabled: true,
                   }}
                   // iOS Safari memory optimizations
-                  preloadImages={false}
                   watchSlidesProgress={true}
                   centeredSlides={true}
                   allowTouchMove={true}
