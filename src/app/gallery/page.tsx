@@ -130,13 +130,7 @@ export default function Gallery() {
     // Clear image cache tracking
     imageCache.current.clear();
 
-    // Force cleanup of all img elements in the DOM
-    const allImages = document.querySelectorAll('.swiper-slide img');
-    allImages.forEach((img) => {
-      const imgElement = img as HTMLImageElement;
-      imgElement.src = '';
-      imgElement.removeAttribute('src');
-    });
+    // Clear image cache tracking (DOM cleanup handled by React)
 
     // Clear allMedia to free memory
     setAllMedia([]);
@@ -652,19 +646,8 @@ export default function Gallery() {
                   onSlideChange={(swiper) => {
                     setCurrentIndex(swiper.activeIndex);
                     
-                    // Aggressive cleanup after every slide change for iOS Safari
+                    // Cleanup videos only (images are handled by conditional rendering)
                     setTimeout(() => {
-                      // Force cleanup of all non-current images
-                      const allImages = document.querySelectorAll('.swiper-slide img');
-                      allImages.forEach((img, idx) => {
-                        const imgElement = img as HTMLImageElement;
-                        if (idx !== swiper.activeIndex && imgElement.src) {
-                          imgElement.src = '';
-                          imgElement.removeAttribute('src');
-                        }
-                      });
-                      
-                      // Force cleanup of all videos
                       videoRefs.current.forEach((video, key) => {
                         if (!key.includes(`fullscreen-${allMedia[swiper.activeIndex]?.key}`)) {
                           video.pause();
