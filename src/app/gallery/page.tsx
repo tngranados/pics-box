@@ -673,22 +673,20 @@ export default function Gallery() {
                     <SwiperSlide key={item.key} className="flex items-center justify-center">
                       <div className="swiper-zoom-container w-full h-full flex items-center justify-center">
                         {item.type === 'image' ? (
-                          index === currentIndex ? (
+                          Math.abs(index - currentIndex) <= 1 ? (
                             <Image
-                              src={item.thumbnail_url || item.optimized_url || item.url}
+                              src={item.optimized_url || item.url}
                               alt={item.fileName}
-                              width={800}
-                              height={600}
+                              width={1200}
+                              height={900}
                               className="max-w-full max-h-full object-contain"
-                              priority={true} // Always prioritize current slide
-                              loading="eager"
+                              priority={index === currentIndex}
+                              loading={index === currentIndex ? "eager" : "lazy"}
                               unoptimized // Prevent Next.js optimization conflicts
                               onError={(e) => {
-                                // Fallback chain: thumbnail -> optimized -> original
+                                // Fallback to original if optimized fails
                                 const target = e.target as HTMLImageElement;
-                                if (target.src === (item.thumbnail_url || item.optimized_url || item.url)) {
-                                  target.src = item.optimized_url || item.url;
-                                } else if (target.src === (item.optimized_url || item.url)) {
+                                if (target.src !== item.url) {
                                   target.src = item.url;
                                 }
                               }}
@@ -700,7 +698,7 @@ export default function Gallery() {
                             </div>
                           )
                         ) : (
-                          index === currentIndex ? (
+                          Math.abs(index - currentIndex) <= 1 ? (
                             <video
                               ref={(el) => {
                                 if (el) {
