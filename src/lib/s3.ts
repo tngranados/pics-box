@@ -85,11 +85,11 @@ export function generateUrlVariants(originalKey: string) {
   const fileName = keyParts[keyParts.length - 1];
 
   if (originalKey.startsWith('originals/')) {
-    // New format - generate URLs for all variants
+    // New format - use proxy URLs for all variants since files are not publicly accessible
     return {
-      thumbnail_url: createPublicUrl(`thumbnails/${fileName}`),
-      optimized_url: createPublicUrl(`optimized/${fileName}`),
-      original_url: createPublicUrl(originalKey)
+      thumbnail_url: `/api/media/${encodeURIComponent(`thumbnails/${fileName}`)}`,
+      optimized_url: `/api/media/${encodeURIComponent(`optimized/${fileName}`)}`,
+      original_url: `/api/media/${encodeURIComponent(originalKey)}`
     };
   } else {
     // Legacy format - fallback to proxy URLs
