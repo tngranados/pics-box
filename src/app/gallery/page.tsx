@@ -98,7 +98,7 @@ export default function Gallery() {
         allFiles.push(...(data.files || []));
         hasMore = data.pagination.hasNextPage;
         page++;
-        
+
         // Add small delay to prevent overwhelming the browser
         if (hasMore) {
           await new Promise(resolve => setTimeout(resolve, 50));
@@ -134,7 +134,7 @@ export default function Gallery() {
 
     // Clear allMedia to free memory
     setAllMedia([]);
-    
+
     // Force garbage collection if available (iOS Safari specific)
     if ('gc' in window && typeof (window as unknown as { gc?: () => void }).gc === 'function') {
       (window as unknown as { gc: () => void }).gc();
@@ -172,7 +172,7 @@ export default function Gallery() {
     if ('memory' in performance && (performance as unknown as { memory?: { jsHeapSizeLimit: number; usedJSHeapSize: number } }).memory) {
       const memInfo = (performance as unknown as { memory: { jsHeapSizeLimit: number; usedJSHeapSize: number } }).memory;
       const availableMemory = memInfo.jsHeapSizeLimit - memInfo.usedJSHeapSize;
-      
+
       // If less than 50MB available, use single image mode
       if (availableMemory < 50 * 1024 * 1024) {
         console.warn('Low memory detected, using single image mode');
@@ -180,7 +180,7 @@ export default function Gallery() {
         setSelectedMedia(selectedItem);
         setCurrentIndex(index);
         setAllMedia([selectedItem]); // Only load current image
-        
+
         // Apply fullscreen styles
         document.body.style.overflow = 'hidden';
         document.body.style.position = 'fixed';
@@ -458,27 +458,63 @@ export default function Gallery() {
                           imageCache.current.add(item.thumbnail_url || item.url);
                         }}
                       />
-                    ) : (
+                    ) : item.type === 'video' ? (
                       <>
+                        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                          <div className="text-gray-500 text-center">
+                            <Play className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                            <div className="text-xs">Video</div>
+                          </div>
+                        </div>
                         <video
+                          key={`thumb-${item.key}`}
                           ref={(el) => {
-                            if (el) {
+                            if (el && item.original_url) {
+                              // Only set src when element is actually visible in viewport
+                              const observer = new IntersectionObserver((entries) => {
+                                entries.forEach(entry => {
+                                  if (entry.isIntersecting) {
+                                    const video = entry.target as HTMLVideoElement;
+                                    if (!video.src) {
+                                      const absoluteSrc = item.original_url!.startsWith('/')
+                                        ? `${window.location.origin}${item.original_url}`
+                                        : item.original_url!;
+                                      video.src = absoluteSrc;
+                                    }
+                                    observer.unobserve(video);
+                                  }
+                                });
+                              });
+                              observer.observe(el);
                               videoRefs.current.set(item.key, el);
-                            } else {
+                            } else if (!el) {
                               videoRefs.current.delete(item.key);
                             }
                           }}
-                          src={item.optimized_url || item.url}
                           className="absolute inset-0 w-full h-full object-cover"
                           controls={false}
                           muted
                           preload="none"
+                          playsInline
+                          onLoadedMetadata={(e) => {
+                            const video = e.target as HTMLVideoElement;
+                            const seekTime = Math.min(1, Math.max(0.1, video.duration * 0.1));
+                            video.currentTime = seekTime;
+                          }}
+                          onSeeked={(e) => {
+                            const placeholder = e.target.parentElement?.querySelector('.bg-gradient-to-br') as HTMLElement;
+                            if (placeholder) {
+                              placeholder.style.display = 'none';
+                            }
+                          }}
                         />
-                        <div className="absolute top-2 left-2 bg-black bg-opacity-60 text-white p-1 rounded z-10">
-                          <Play className="w-4 h-4" />
+                        <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center pointer-events-none">
+                          <div className="bg-black bg-opacity-60 text-white p-3 rounded-full">
+                            <Play className="w-6 h-6 ml-1" />
+                          </div>
                         </div>
                       </>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="absolute top-2 right-2 z-10">
@@ -655,7 +691,7 @@ export default function Gallery() {
                   allowTouchMove={true}
                   onSlideChange={(swiper) => {
                     setCurrentIndex(swiper.activeIndex);
-                    
+
                     // Cleanup videos only (images are handled by conditional rendering)
                     setTimeout(() => {
                       videoRefs.current.forEach((video, key) => {
@@ -665,7 +701,7 @@ export default function Gallery() {
                           video.load();
                         }
                       });
-                      
+
                       // Force garbage collection if available
                       if ('gc' in window && typeof (window as unknown as { gc?: () => void }).gc === 'function') {
                         (window as unknown as { gc: () => void }).gc();
@@ -692,36 +728,39 @@ export default function Gallery() {
                             className="max-w-full max-h-full object-contain"
                             priority={index === currentIndex}
                             loading={index === currentIndex ? "eager" : "lazy"}
-                            unoptimized // Prevent Next.js optimization conflicts
+                            unoptimized
                             onError={(e) => {
-                              // Fallback to original if optimized fails
                               const target = e.target as HTMLImageElement;
                               if (target.src !== item.url) {
                                 target.src = item.url;
                               }
                             }}
                           />
-                        ) : (
+                        ) : item.type === 'video' && Math.abs(index - currentIndex) <= 1 ? (
                           <video
-                            key={`video-${index}`}
-                            src={item.optimized_url || item.url}
+                            key={`video-${index}-${currentIndex}`}
+                            ref={(el) => {
+                              if (el && item.original_url) {
+                                const absoluteSrc = item.original_url.startsWith('/')
+                                  ? `${window.location.origin}${item.original_url}`
+                                  : item.original_url;
+                                el.src = absoluteSrc;
+                              }
+                            }}
                             controls
                             className="max-w-full max-h-full object-contain"
                             playsInline
-                            preload="none"
+                            preload={index === currentIndex ? "metadata" : "none"}
                             muted
-                            onLoadStart={() => {
-                              // Clean up other video elements when new one starts loading
-                              videoRefs.current.forEach((video, key) => {
-                                if (!key.includes(item.key)) {
-                                  video.pause();
-                                  video.src = '';
-                                  video.load();
-                                }
-                              });
-                            }}
                           />
-                        )}
+                        ) : item.type === 'video' ? (
+                          <div className="max-w-full max-h-full flex items-center justify-center bg-gray-900">
+                            <div className="text-white text-center">
+                              <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                              <div className="text-sm opacity-75">{item.fileName}</div>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     </SwiperSlide>
                   ))}

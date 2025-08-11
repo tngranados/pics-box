@@ -84,8 +84,22 @@ export function generateUrlVariants(originalKey: string) {
   const keyParts = originalKey.split('/');
   const fileName = keyParts[keyParts.length - 1];
 
+  // Determine if it's a video based on file extension
+  const extension = fileName.toLowerCase().split('.').pop() || '';
+  const isVideo = ['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(extension);
+
   if (originalKey.startsWith('originals/')) {
-    // New format - use proxy URLs for all variants since files are not publicly accessible
+    // For videos, only use original URL since optimized versions may not exist
+    if (isVideo) {
+      const originalUrl = `/api/media/${encodeURIComponent(originalKey)}`;
+      return {
+        thumbnail_url: originalUrl, // Use original for thumbnail too
+        optimized_url: originalUrl, // Use original since optimized may not exist
+        original_url: originalUrl
+      };
+    }
+
+    // For images, try optimized variants but fallback to original
     return {
       thumbnail_url: `/api/media/${encodeURIComponent(`thumbnails/${fileName}`)}`,
       optimized_url: `/api/media/${encodeURIComponent(`optimized/${fileName}`)}`,
