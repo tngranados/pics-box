@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Boda Antonio y María - 16 agosto 2025",
-  description: "Comparte tus fotos y videos de nuestra boda especial",
+  description: "Comparte tus fotos y videos de nuestro día especial",
   manifest: "/manifest.json",
   // Use a soft background in light and black in dark/standalone to avoid white browser bars on iOS
   themeColor: [
