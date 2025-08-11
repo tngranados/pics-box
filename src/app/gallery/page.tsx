@@ -751,7 +751,6 @@ export default function Gallery() {
                             className="max-w-full max-h-full object-contain"
                             playsInline
                             preload={index === currentIndex ? "metadata" : "none"}
-                            muted
                           />
                         ) : item.type === 'video' ? (
                           <div className="max-w-full max-h-full flex items-center justify-center bg-gray-900">
