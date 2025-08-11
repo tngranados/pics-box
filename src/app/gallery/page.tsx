@@ -42,6 +42,9 @@ export default function Gallery() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loadingAllMedia, setLoadingAllMedia] = useState(false);
+  // Memory management refs
+  const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const imageCache = useRef<Set<string>>(new Set());
   // Store originals to restore after fullscreen closes or route changes
   const originalThemeColorRef = useRef<string | null>(null);
   const themeMetaExistedRef = useRef<boolean>(false);
@@ -101,6 +104,23 @@ export default function Gallery() {
       setLoadingAllMedia(false);
       return [];
     }
+  };
+
+  // Clean up media cache
+  const clearMediaCache = () => {
+    // Clear video elements
+    videoRefs.current.forEach((video) => {
+      video.pause();
+      video.src = '';
+      video.load();
+    });
+    videoRefs.current.clear();
+
+    // Clear image cache tracking
+    imageCache.current.clear();
+
+    // Clear allMedia to free memory
+    setAllMedia([]);
   };
 
   const handlePageChange = (page: number) => {
@@ -183,6 +203,10 @@ export default function Gallery() {
 
   const closeFullscreen = () => {
     console.log('Close button clicked'); // Debug log
+
+    // Clean up media resources before closing
+    clearMediaCache();
+
     setSelectedMedia(null);
     // Restore body scrolling and position
     if (originalBodyStylesRef.current) {
@@ -237,6 +261,9 @@ export default function Gallery() {
   // Safety net: cleanup on unmount/navigation
   useEffect(() => {
     return () => {
+      // Clean up media resources
+      clearMediaCache();
+
       // If overlay was open, ensure restoration
       document.documentElement.classList.remove('fullscreen-open');
       document.body.classList.remove('fullscreen-open');
@@ -379,20 +406,32 @@ export default function Gallery() {
                         alt="Recuerdo de boda"
                         fill
                         className="object-cover"
+                        loading="lazy"
+                        quality={75}
+                        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                         onError={() => {
                           console.error('Image failed to load:', item.url);
+                          imageCache.current.delete(item.url);
                         }}
                         onLoad={() => {
-                          console.log('Image loaded successfully:', item.url);
+                          imageCache.current.add(item.url);
                         }}
                       />
                     ) : (
                       <>
                         <video
+                          ref={(el) => {
+                            if (el) {
+                              videoRefs.current.set(item.key, el);
+                            } else {
+                              videoRefs.current.delete(item.key);
+                            }
+                          }}
                           src={item.url}
                           className="absolute inset-0 w-full h-full object-cover"
                           controls={false}
                           muted
+                          preload="none"
                         />
                         <div className="absolute top-2 left-2 bg-black bg-opacity-60 text-white p-1 rounded z-10">
                           <Play className="w-4 h-4" />
@@ -571,14 +610,24 @@ export default function Gallery() {
                             width={1920}
                             height={1080}
                             className="max-w-full max-h-full object-contain"
-                            priority={index === currentIndex}
+                            priority={Math.abs(index - currentIndex) <= 1} // Only prioritize current and adjacent slides
+                            quality={90}
+                            loading={Math.abs(index - currentIndex) <= 2 ? 'eager' : 'lazy'} // Lazy load distant slides
                           />
                         ) : (
                           <video
+                            ref={(el) => {
+                              if (el) {
+                                videoRefs.current.set(`fullscreen-${item.key}`, el);
+                              } else {
+                                videoRefs.current.delete(`fullscreen-${item.key}`);
+                              }
+                            }}
                             src={item.url}
                             controls
                             className="max-w-full max-h-full object-contain"
                             playsInline
+                            preload={Math.abs(index - currentIndex) <= 1 ? 'metadata' : 'none'} // Only preload nearby videos
                           />
                         )}
                       </div>
