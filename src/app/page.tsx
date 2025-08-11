@@ -1,26 +1,52 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Camera, Upload, Heart, Users, Images } from 'lucide-react';
+import { Camera, Heart, Users, Images, Check, X } from 'lucide-react';
 import Link from 'next/link';
 
+interface FileWithProgress {
+  file: File;
+  progress: number;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  id: string;
+}
+
 export default function Home() {
-  const [files, setFiles] = useState<File[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [files, setFiles] = useState<FileWithProgress[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       const selectedFiles = Array.from(event.target.files);
-      setFiles(prev => [...prev, ...selectedFiles]);
+      const newFiles: FileWithProgress[] = selectedFiles.map(file => ({
+        file,
+        progress: 0,
+        status: 'pending' as const,
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }));
+
+      setFiles(prev => [...prev, ...newFiles]);
+
+      // Start uploading immediately
+      newFiles.forEach(fileWithProgress => {
+        uploadFile(fileWithProgress.id, fileWithProgress.file);
+      });
     }
   };
 
-  const uploadFile = async (file: File) => {
+  const updateFileProgress = (id: string, progress: number, status: FileWithProgress['status']) => {
+    setFiles(prev => prev.map(f =>
+      f.id === id ? { ...f, progress, status } : f
+    ));
+  };
+
+  const uploadFile = async (id: string, file: File) => {
     try {
+      updateFileProgress(id, 0, 'uploading');
       console.log('Starting upload for file:', file.name, file.type);
 
       // Get presigned URL
+      updateFileProgress(id, 10, 'uploading');
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -35,65 +61,64 @@ export default function Home() {
       if (!response.ok) {
         const errorData = await response.json();
         console.error('API error:', errorData);
+        updateFileProgress(id, 0, 'error');
         throw new Error(`Failed to get upload URL: ${errorData.error}`);
       }
 
       const { uploadUrl } = await response.json();
       console.log('Got presigned PUT URL, uploading to:', uploadUrl);
+      updateFileProgress(id, 20, 'uploading');
 
-      // Upload file to R2 using PUT
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-        },
+      // Create XMLHttpRequest for progress tracking
+      const xhr = new XMLHttpRequest();
+
+      return new Promise<boolean>((resolve, reject) => {
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const progress = 20 + Math.round((event.loaded / event.total) * 80);
+            updateFileProgress(id, progress, 'uploading');
+          }
+        });
+
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            updateFileProgress(id, 100, 'success');
+            console.log('Upload successful for:', file.name);
+            resolve(true);
+          } else {
+            console.error('Upload failed:', xhr.statusText);
+            updateFileProgress(id, 0, 'error');
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          console.error('Upload error for file', file.name);
+          updateFileProgress(id, 0, 'error');
+          reject(new Error('Network error during upload'));
+        });
+
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.send(file);
       });
-
-      console.log('Upload response status:', uploadResponse.status);
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        console.error('Upload failed:', errorText);
-        throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
-      }
-
-      console.log('Upload successful for:', file.name);
-      return true;
     } catch (error) {
       console.error('Upload error for file', file.name, ':', error);
+      updateFileProgress(id, 0, 'error');
       return false;
     }
   };
 
-  const handleUpload = async () => {
-    if (files.length === 0) return;
-
-    setUploading(true);
-
-    try {
-      const uploadPromises = files.map(uploadFile);
-      const results = await Promise.all(uploadPromises);
-
-      const successCount = results.filter(Boolean).length;
-      const failCount = results.length - successCount;
-
-      if (failCount === 0) {
-        alert(`¡Todos los ${successCount} archivos se subieron exitosamente! 📸`);
-      } else {
-        alert(`${successCount} archivos subidos, ${failCount} fallaron. Por favor intenta de nuevo.`);
-      }
-
-      setFiles([]);
-    } catch {
-      alert('Subida falló. Por favor verifica tu conexión e intenta de nuevo.');
-    } finally {
-      setUploading(false);
-    }
+  const removeFile = (id: string) => {
+    setFiles(prev => prev.filter(f => f.id !== id));
   };
 
-  const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+  const retryUpload = (id: string, file: File) => {
+    uploadFile(id, file);
+  };
+
+  const clearCompletedFiles = () => {
+    setFiles(prev => prev.filter(f => f.status !== 'success'));
   };
 
   const triggerFileInput = () => {
@@ -141,64 +166,126 @@ export default function Home() {
                 Subir fotos/videos
               </h3>
               <p className="text-gray-500 text-sm">
-                Toca aquí para subir recuerdos de la boda
+                Toca aquí para seleccionar archivos
+              </p>
+              <p className="text-xs text-gray-400 mt-2">
+                Se subirán automáticamente
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              <h3 className="font-semibold text-gray-700 flex items-center">
-                <Users className="w-5 h-5 mr-2" />
-                Archivos seleccionados ({files.length})
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-700 flex items-center">
+                  <Users className="w-5 h-5 mr-2" />
+                  Archivos ({files.length})
+                </h3>
+                {files.some(f => f.status === 'success') && (
+                  <button
+                    onClick={clearCompletedFiles}
+                    className="text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    Limpiar completados
+                  </button>
+                )}
+              </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {files.map((file, index) => (
-                  <div key={index} className="relative">
-                    <div className="bg-gray-100 rounded-lg p-3 text-center">
-                      {file.type.startsWith('image/') ? (
-                        <div className="text-blue-500 text-xs mb-1">📷 Foto</div>
-                      ) : (
-                        <div className="text-purple-500 text-xs mb-1">🎥 Video</div>
-                      )}
-                      <div className="text-xs text-gray-600 truncate">
-                        {file.name}
+              <div className="space-y-3">
+                {files.map((fileWithProgress) => (
+                  <div key={fileWithProgress.id} className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2 flex-1 min-w-0">
+                        <div className="flex-shrink-0">
+                          {fileWithProgress.file.type.startsWith('image/') ? (
+                            <div className="text-blue-500 text-xs">📷</div>
+                          ) : (
+                            <div className="text-purple-500 text-xs">🎥</div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm text-gray-700 truncate">
+                            {fileWithProgress.file.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {(fileWithProgress.file.size / 1024 / 1024).toFixed(1)} MB
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        {(file.size / 1024 / 1024).toFixed(1)} MB
+
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        {fileWithProgress.status === 'success' && (
+                          <Check className="w-5 h-5 text-green-500" />
+                        )}
+                        {fileWithProgress.status === 'error' && (
+                          <button
+                            onClick={() => retryUpload(fileWithProgress.id, fileWithProgress.file)}
+                            className="text-red-500 hover:text-red-600 text-xs px-2 py-1 bg-red-50 rounded"
+                          >
+                            Reintentar
+                          </button>
+                        )}
+                        {fileWithProgress.status === 'uploading' && (
+                          <div className="text-xs text-gray-500">
+                            {fileWithProgress.progress}%
+                          </div>
+                        )}
+                        <button
+                          onClick={() => removeFile(fileWithProgress.id)}
+                          className="text-gray-400 hover:text-red-500 p-1"
+                          disabled={fileWithProgress.status === 'uploading'}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                    <button
-                      onClick={() => removeFile(index)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                    >
-                      ×
-                    </button>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${fileWithProgress.status === 'success'
+                            ? 'bg-green-500'
+                            : fileWithProgress.status === 'error'
+                              ? 'bg-red-500'
+                              : fileWithProgress.status === 'uploading'
+                                ? 'bg-pink-500'
+                                : 'bg-gray-300'
+                          }`}
+                        style={{
+                          width: `${fileWithProgress.status === 'success'
+                              ? 100
+                              : fileWithProgress.status === 'error'
+                                ? 0
+                                : fileWithProgress.progress
+                            }%`,
+                        }}
+                      />
+                    </div>
+
+                    {/* Status Text */}
+                    <div className="mt-1 text-xs">
+                      {fileWithProgress.status === 'pending' && (
+                        <span className="text-gray-500">Esperando...</span>
+                      )}
+                      {fileWithProgress.status === 'uploading' && (
+                        <span className="text-pink-600">Subiendo... {fileWithProgress.progress}%</span>
+                      )}
+                      {fileWithProgress.status === 'success' && (
+                        <span className="text-green-600">¡Subido exitosamente!</span>
+                      )}
+                      {fileWithProgress.status === 'error' && (
+                        <span className="text-red-600">Error en la subida</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={triggerFileInput}
-                  className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-medium"
-                >
-                  Agregar más
-                </button>
-                <button
-                  onClick={handleUpload}
-                  disabled={uploading}
-                  className="flex-1 bg-pink-500 text-white py-3 px-4 rounded-xl font-medium flex items-center justify-center disabled:opacity-50"
-                >
-                  {uploading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <Upload className="w-5 h-5 mr-2" />
-                      Subir
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                onClick={triggerFileInput}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-xl font-medium flex items-center justify-center transition-colors"
+              >
+                <Camera className="w-5 h-5 mr-2" />
+                Agregar más archivos
+              </button>
             </div>
           )}
         </div>
