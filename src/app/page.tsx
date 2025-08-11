@@ -45,29 +45,11 @@ export default function Home() {
       updateFileProgress(id, 0, 'uploading');
       console.log('Starting upload for file:', file.name, file.type);
 
-      // Get presigned URL
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+
       updateFileProgress(id, 10, 'uploading');
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: file.name,
-          fileType: file.type,
-        }),
-      });
-
-      console.log('API response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('API error:', errorData);
-        updateFileProgress(id, 0, 'error');
-        throw new Error(`Failed to get upload URL: ${errorData.error}`);
-      }
-
-      const { uploadUrl } = await response.json();
-      console.log('Got presigned PUT URL, uploading to:', uploadUrl);
-      updateFileProgress(id, 20, 'uploading');
 
       // Create XMLHttpRequest for progress tracking
       const xhr = new XMLHttpRequest();
@@ -75,7 +57,7 @@ export default function Home() {
       return new Promise<boolean>((resolve, reject) => {
         xhr.upload.addEventListener('progress', (event) => {
           if (event.lengthComputable) {
-            const progress = 20 + Math.round((event.loaded / event.total) * 80);
+            const progress = 10 + Math.round((event.loaded / event.total) * 90);
             updateFileProgress(id, progress, 'uploading');
           }
         });
@@ -83,7 +65,7 @@ export default function Home() {
         xhr.addEventListener('load', () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             updateFileProgress(id, 100, 'success');
-            console.log('Upload successful for:', file.name);
+            console.log('Upload and processing successful for:', file.name);
             resolve(true);
           } else {
             console.error('Upload failed:', xhr.statusText);
@@ -98,9 +80,8 @@ export default function Home() {
           reject(new Error('Network error during upload'));
         });
 
-        xhr.open('PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', file.type);
-        xhr.send(file);
+        xhr.open('POST', '/api/process-upload');
+        xhr.send(formData);
       });
     } catch (error) {
       console.error('Upload error for file', file.name, ':', error);

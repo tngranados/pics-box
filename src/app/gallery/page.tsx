@@ -17,6 +17,9 @@ import 'swiper/css/zoom';
 interface MediaFile {
   key: string;
   url: string;
+  thumbnail_url?: string;
+  optimized_url?: string;
+  original_url?: string;
   type: 'image' | 'video';
   uploadedAt: string;
   fileName: string;
@@ -130,7 +133,9 @@ export default function Gallery() {
 
   const downloadMedia = async (media: MediaFile) => {
     try {
-      const response = await fetch(media.url);
+      // Use original_url for downloads to get full quality
+      const downloadUrl = media.original_url || media.url;
+      const response = await fetch(downloadUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -402,19 +407,18 @@ export default function Gallery() {
                   >
                     {item.type === 'image' ? (
                       <Image
-                        src={item.url}
+                        src={item.thumbnail_url || item.url}
                         alt="Recuerdo de boda"
                         fill
                         className="object-cover"
                         loading="lazy"
-                        quality={75}
                         sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                         onError={() => {
-                          console.error('Image failed to load:', item.url);
-                          imageCache.current.delete(item.url);
+                          console.error('Image failed to load:', item.thumbnail_url || item.url);
+                          imageCache.current.delete(item.thumbnail_url || item.url);
                         }}
                         onLoad={() => {
-                          imageCache.current.add(item.url);
+                          imageCache.current.add(item.thumbnail_url || item.url);
                         }}
                       />
                     ) : (
@@ -427,7 +431,7 @@ export default function Gallery() {
                               videoRefs.current.delete(item.key);
                             }
                           }}
-                          src={item.url}
+                          src={item.optimized_url || item.url}
                           className="absolute inset-0 w-full h-full object-cover"
                           controls={false}
                           muted
@@ -605,13 +609,12 @@ export default function Gallery() {
                       <div className="swiper-zoom-container w-full h-full flex items-center justify-center">
                         {item.type === 'image' ? (
                           <Image
-                            src={item.url}
+                            src={item.optimized_url || item.url}
                             alt={item.fileName}
                             width={1920}
                             height={1080}
                             className="max-w-full max-h-full object-contain"
                             priority={Math.abs(index - currentIndex) <= 1} // Only prioritize current and adjacent slides
-                            quality={90}
                             loading={Math.abs(index - currentIndex) <= 2 ? 'eager' : 'lazy'} // Lazy load distant slides
                           />
                         ) : (
@@ -623,7 +626,7 @@ export default function Gallery() {
                                 videoRefs.current.delete(`fullscreen-${item.key}`);
                               }
                             }}
-                            src={item.url}
+                            src={item.optimized_url || item.url}
                             controls
                             className="max-w-full max-h-full object-contain"
                             playsInline

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { listUploadedFiles } from '@/lib/s3';
+import { listUploadedFiles, generateUrlVariants } from '@/lib/s3';
 
 export async function GET(request: Request) {
   try {
@@ -7,30 +7,33 @@ export async function GET(request: Request) {
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
-    
+
     console.log(`Gallery API called - page: ${page}, limit: ${limit}, offset: ${offset}`);
-    
+
     const files = await listUploadedFiles();
     console.log(`Found ${files.length} files in gallery`);
 
     const mediaFiles = files.map((file) => {
       try {
-        // Use proxy URL instead of direct R2 URL to avoid CORS issues
-        const url = `/api/media/${encodeURIComponent(file.key)}`;
-        
+        // Generate URL variants based on folder structure
+        const urlVariants = generateUrlVariants(file.key);
+
         // Extract original filename from key (remove timestamp prefix)
         const keyParts = file.key.split('/');
         const fileName = keyParts[keyParts.length - 1];
         const originalName = fileName.replace(/^\d+-/, '');
         const decodedName = decodeURIComponent(originalName);
-        
+
         // Determine file type from extension
         const extension = decodedName.toLowerCase().split('.').pop() || '';
         const isVideo = ['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(extension);
-        
+
         return {
           key: file.key,
-          url,
+          url: urlVariants.optimized_url, // Keep backwards compatibility - use optimized as default
+          thumbnail_url: urlVariants.thumbnail_url,
+          optimized_url: urlVariants.optimized_url,
+          original_url: urlVariants.original_url,
           type: isVideo ? 'video' : 'image',
           uploadedAt: file.lastModified.toISOString(),
           fileName: decodedName,
@@ -46,11 +49,11 @@ export async function GET(request: Request) {
     const validMediaFiles = mediaFiles
       .filter(file => file !== null)
       .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-    
+
     // Apply pagination
     const paginatedFiles = validMediaFiles.slice(offset, offset + limit);
     const totalPages = Math.ceil(validMediaFiles.length / limit);
-    
+
     return NextResponse.json({
       files: paginatedFiles,
       pagination: {

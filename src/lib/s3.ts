@@ -20,7 +20,7 @@ export async function createUploadUrl(fileName: string, fileType: string) {
     ContentType: fileType,
   });
 
-  const url = await getSignedUrl(s3Client, command, { 
+  const url = await getSignedUrl(s3Client, command, {
     expiresIn: 3600 // 1 hour
   });
 
@@ -28,19 +28,30 @@ export async function createUploadUrl(fileName: string, fileType: string) {
 }
 
 export async function listUploadedFiles() {
-  const command = new ListObjectsV2Command({
-    Bucket: process.env.S3_BUCKET_NAME!,
-    Prefix: 'uploads/',
-    MaxKeys: 1000,
-  });
+  // Get files from all folders (originals, uploads for backwards compatibility)
+  const [originalsResponse, uploadsResponse] = await Promise.all([
+    s3Client.send(new ListObjectsV2Command({
+      Bucket: process.env.S3_BUCKET_NAME!,
+      Prefix: 'originals/',
+      MaxKeys: 1000,
+    })),
+    s3Client.send(new ListObjectsV2Command({
+      Bucket: process.env.S3_BUCKET_NAME!,
+      Prefix: 'uploads/',
+      MaxKeys: 1000,
+    }))
+  ]);
 
-  const response = await s3Client.send(command);
-  
-  if (!response.Contents) {
+  const allFiles = [
+    ...(originalsResponse.Contents || []),
+    ...(uploadsResponse.Contents || [])
+  ];
+
+  if (allFiles.length === 0) {
     return [];
   }
 
-  const files = response.Contents.map(obj => ({
+  const files = allFiles.map(obj => ({
     key: obj.Key!,
     lastModified: obj.LastModified!,
     size: obj.Size!,
@@ -55,9 +66,38 @@ export async function createDownloadUrl(key: string) {
     Key: key,
   });
 
-  const url = await getSignedUrl(s3Client, command, { 
+  const url = await getSignedUrl(s3Client, command, {
     expiresIn: 3600 // 1 hour
   });
 
   return url;
+}
+
+export function createPublicUrl(key: string): string {
+  // Create public URL directly (assuming files are public-readable)
+  const endpoint = process.env.S3_ENDPOINT!.replace('https://', '').replace('http://', '');
+  return `https://${endpoint}/${process.env.S3_BUCKET_NAME}/${key}`;
+}
+
+export function generateUrlVariants(originalKey: string) {
+  // Extract base filename from key
+  const keyParts = originalKey.split('/');
+  const fileName = keyParts[keyParts.length - 1];
+
+  if (originalKey.startsWith('originals/')) {
+    // New format - generate URLs for all variants
+    return {
+      thumbnail_url: createPublicUrl(`thumbnails/${fileName}`),
+      optimized_url: createPublicUrl(`optimized/${fileName}`),
+      original_url: createPublicUrl(originalKey)
+    };
+  } else {
+    // Legacy format - fallback to proxy URLs
+    const proxyUrl = `/api/media/${encodeURIComponent(originalKey)}`;
+    return {
+      thumbnail_url: proxyUrl, // Use proxy for backwards compatibility
+      optimized_url: proxyUrl,
+      original_url: proxyUrl
+    };
+  }
 }
