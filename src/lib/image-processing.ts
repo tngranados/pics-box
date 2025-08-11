@@ -54,10 +54,11 @@ export async function processAndUploadImage(
   }
 
   // Process images
-  const image = sharp(buffer);
+  const image = sharp(buffer).rotate(); // Auto-apply EXIF orientation
 
   // Generate thumbnail (400x400)
   const thumbnailBuffer = await image
+    .clone()
     .resize(400, 400, {
       fit: 'cover',
       position: 'center'
@@ -67,6 +68,7 @@ export async function processAndUploadImage(
 
   // Generate optimized version (1920x1920)
   const optimizedBuffer = await image
+    .clone()
     .resize(1920, 1920, {
       fit: 'inside',
       withoutEnlargement: true
