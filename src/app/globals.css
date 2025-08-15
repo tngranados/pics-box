@@ -16,7 +16,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+  /* Keep pink even in dark mode per requirement */
+  --background: #fdf2f8;
     --foreground: #ededed;
   }
 }
@@ -30,8 +31,6 @@ html, body {
   min-height: 100dvh;
   /* Fallbacks for older Safari */
   min-height: -webkit-fill-available;
-  /* Ensure background extends beyond viewport on overscroll */
-  background-attachment: fixed;
 }
 
 body {
@@ -57,7 +56,25 @@ body {
 
 /* When fullscreen media viewer is open, force black chrome */
 html.fullscreen-open, body.fullscreen-open {
-  background: #000;
+  /* Use !important to override inline styles set by layout */
+  background: #000 !important;
+  color-scheme: dark;
+}
+
+/* Global fixed backdrop to ensure background color fills under browser chrome */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: var(--background);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* When fullscreen is open, force the fixed backdrop to black too */
+html.fullscreen-open body::before,
+body.fullscreen-open::before {
+  background: #000 !important;
 }
 
 /* Improve interaction model while fullscreen is open */
@@ -80,7 +97,16 @@ body.fullscreen-open {
 .py-safe { padding-top: env(safe-area-inset-top, 0); padding-bottom: env(safe-area-inset-bottom, 0); }
 
 /* Helper class for mobile full height */
-.mobile-min-h { min-height: 100dvh; min-height: -webkit-fill-available; }
+.mobile-min-h {
+  /* Broadest fallback first */
+  min-height: 100vh;
+  /* Stable viewport height (iOS 16.4+) */
+  min-height: 100svh;
+  /* Dynamic viewport height (modern browsers) */
+  min-height: 100dvh;
+  /* Old Safari fallback */
+  min-height: -webkit-fill-available;
+}
 
 /* Swiper navigation improvements for mobile */
 .swiper-button-next,

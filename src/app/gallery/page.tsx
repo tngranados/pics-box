@@ -238,14 +238,6 @@ export default function Gallery() {
       viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, minimal-ui');
     }
 
-    // Force theme-color to black while fullscreen to avoid white bars
-    let themeMeta2 = document.querySelector('meta[name=theme-color]') as HTMLMetaElement | null;
-    if (!themeMeta2) {
-      themeMeta2 = document.createElement('meta');
-      themeMeta2.name = 'theme-color';
-      document.head.appendChild(themeMeta2);
-    }
-    themeMeta2.setAttribute('content', '#000000');
   };
 
   const closeFullscreen = useCallback(() => {
@@ -299,7 +291,7 @@ export default function Gallery() {
     } else {
       // Fallback: set based on color scheme
       const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const fallback = isDark ? '#000000' : '#fdf2f8';
+      const fallback = isDark ? '#fdf2f8' : '#fdf2f8';
       if (!themeMeta) {
         themeMeta = document.createElement('meta');
         themeMeta.name = 'theme-color';
