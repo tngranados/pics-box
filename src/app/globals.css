@@ -47,7 +47,7 @@ body {
     background: var(--background) !important;
     background-size: 100% 200vh !important;
   }
-  
+
   body {
     /* Ensure body background matches and extends */
     background: var(--background) !important;
@@ -59,6 +59,17 @@ body {
 html.fullscreen-open, body.fullscreen-open {
   background: #000;
 }
+
+/* Improve interaction model while fullscreen is open */
+html.fullscreen-open,
+body.fullscreen-open {
+  overscroll-behavior: contain;
+  touch-action: manipulation;
+}
+
+/* Utility for components that need quick fade */
+.transition-opacity { transition-property: opacity; }
+.duration-200 { transition-duration: 200ms; }
 
 /* Safe area utilities */
 .pt-safe { padding-top: env(safe-area-inset-top, 0); }

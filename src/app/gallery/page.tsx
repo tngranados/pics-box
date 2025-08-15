@@ -46,6 +46,7 @@ export default function Gallery() {
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loadingAllMedia, setLoadingAllMedia] = useState(false);
   const [isLowMemoryMode, setIsLowMemoryMode] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   // Memory management refs
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const imageCache = useRef<Set<string>>(new Set());
@@ -54,6 +55,8 @@ export default function Gallery() {
   const themeMetaExistedRef = useRef<boolean>(false);
   const originalViewportRef = useRef<string | null>(null);
   const originalBodyStylesRef = useRef<{ overflow: string; position: string; width: string; height: string } | null>(null);
+  // Guard to prevent accidental back navigation after closing overlay
+  const lastCloseTimeRef = useRef<number>(0);
 
   useEffect(() => {
     fetchMedia(currentPage);
@@ -167,6 +170,8 @@ export default function Gallery() {
 
   const openFullscreen = async (index: number) => {
     const selectedItem = media[index];
+  // Reset closing state in case of quick reopen
+  setIsClosing(false);
 
     // Check available memory before loading (iOS Safari specific)
     if ('memory' in performance && (performance as unknown as { memory?: { jsHeapSizeLimit: number; usedJSHeapSize: number } }).memory) {
@@ -249,6 +254,10 @@ export default function Gallery() {
     // Clean up media resources before closing
     clearMediaCache();
 
+    // Mark the moment of closing to guard against accidental clicks
+    lastCloseTimeRef.current = Date.now();
+
+    // Remove overlay after cleanup
     setSelectedMedia(null);
     // Restore body scrolling and position
     if (originalBodyStylesRef.current) {
@@ -298,7 +307,19 @@ export default function Gallery() {
       }
       themeMeta.setAttribute('content', fallback);
     }
+    // Reset closing state
+    setIsClosing(false);
   }, [clearMediaCache]);
+
+  // Start a graceful close with a short fade-out to avoid click-through
+  const requestCloseFullscreen = useCallback(() => {
+    if (!selectedMedia || isClosing) return;
+    setIsClosing(true);
+    // Keep overlay present to absorb taps while it fades out
+    setTimeout(() => {
+      closeFullscreen();
+    }, 220); // matches CSS transition duration
+  }, [selectedMedia, isClosing, closeFullscreen]);
 
   // Safety net: cleanup on unmount/navigation
   useEffect(() => {
@@ -397,7 +418,17 @@ export default function Gallery() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center mb-6 pt-4 pt-safe">
-          <Link href="/" className="mr-4">
+          <Link
+            href="/"
+            className="mr-4"
+            onClick={(e) => {
+              // Prevent accidental navigation if user just closed fullscreen
+              if (Date.now() - lastCloseTimeRef.current < 300) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
+          >
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </Link>
           <div className="flex items-center">
@@ -548,7 +579,7 @@ export default function Gallery() {
         {/* Swiper-based Full-screen Gallery */}
         {selectedMedia && mounted && createPortal(
           <div
-            className="fixed bg-black"
+            className={`fixed bg-black transition-opacity duration-200 ${isClosing ? 'opacity-0' : 'opacity-100'}`}
             style={{
               zIndex: 999999,
               position: 'fixed',
@@ -564,10 +595,10 @@ export default function Gallery() {
               WebkitUserSelect: 'none',
               userSelect: 'none'
             }}
-            onClick={(e) => {
+      onClick={(e) => {
               // Close if clicking on the background (not on the swiper content)
               if (e.target === e.currentTarget) {
-                closeFullscreen();
+        requestCloseFullscreen();
               }
             }}
             onTouchStart={(e) => {
@@ -575,16 +606,28 @@ export default function Gallery() {
               if (e.target === e.currentTarget) {
                 e.preventDefault();
               }
+              // While closing, swallow events to avoid click-through
+              if (isClosing) {
+                e.stopPropagation();
+                return;
+              }
             }}
             onTouchMove={(e) => {
               // Prevent scrolling that might trigger browser UI
               e.preventDefault();
+              if (isClosing) {
+                e.stopPropagation();
+                return;
+              }
             }}
             onTouchEnd={(e) => {
               // Handle touch end for closing
               if (e.target === e.currentTarget) {
                 e.preventDefault();
-                closeFullscreen();
+                requestCloseFullscreen();
+              }
+              if (isClosing) {
+                e.stopPropagation();
               }
             }}
           >
@@ -604,13 +647,13 @@ export default function Gallery() {
                     e.preventDefault();
                     e.stopPropagation();
                     console.log('Close button mousedown'); // Debug
-                    closeFullscreen();
+                    requestCloseFullscreen();
                   }}
                   onTouchStart={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     console.log('Close button touchstart'); // Debug
-                    closeFullscreen();
+                    requestCloseFullscreen();
                   }}
                   className="text-white bg-black/50 backdrop-blur-sm p-3 rounded-full hover:bg-black/70 transition-all cursor-pointer select-none border border-white/20"
                   style={{ zIndex: 1001 }}
@@ -656,16 +699,16 @@ export default function Gallery() {
                   </div>
                 </div>
               ) : (
-                <Swiper
+        <Swiper
                   modules={[Navigation, SwiperPagination, Zoom, Keyboard, Virtual]}
                   spaceBetween={0}
                   slidesPerView={1}
                   initialSlide={currentIndex}
                   navigation={{
-                    enabled: true,
+          enabled: !isClosing,
                   }}
                   pagination={{
-                    enabled: allMedia.length <= 10,
+          enabled: !isClosing && allMedia.length <= 10,
                     clickable: true,
                     type: 'fraction',
                     formatFractionCurrent: (number) => number,
@@ -676,7 +719,7 @@ export default function Gallery() {
                     minRatio: 1,
                   }}
                   keyboard={{
-                    enabled: true,
+                    enabled: !isClosing,
                   }}
                   // Enable Virtual Slides to prevent memory crashes
                   virtual={{
@@ -688,7 +731,7 @@ export default function Gallery() {
                   // iOS Safari memory optimizations
                   watchSlidesProgress={true}
                   centeredSlides={true}
-                  allowTouchMove={true}
+                  allowTouchMove={!isClosing}
                   onSlideChange={(swiper) => {
                     setCurrentIndex(swiper.activeIndex);
 
