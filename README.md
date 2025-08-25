@@ -14,11 +14,13 @@ A mobile-first wedding photo and video sharing application built with Next.js. A
 ## Setup
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Configure S3/R2 storage:**
+
    - Copy `.env.local.example` to `.env.local`
    - Fill in your S3/R2 credentials:
      ```env
@@ -30,6 +32,7 @@ A mobile-first wedding photo and video sharing application built with Next.js. A
      ```
 
 3. **Add PWA icons:**
+
    - Add `icon-192.png` (192x192px) to `/public/`
    - Add `icon-512.png` (512x512px) to `/public/`
 
@@ -83,3 +86,31 @@ public/
 ├── manifest.json        # PWA manifest
 └── icons/              # PWA icons
 ```
+
+## One-off: Download All Original Files
+
+You can download every original uploaded asset (those stored under the `originals/` prefix in the bucket) to a local folder for backup or migration.
+
+1. Ensure your `.env.local` (or exported env vars) contains the S3/R2 configuration values:
+   - `S3_ENDPOINT`
+   - `AWS_ACCESS_KEY_ID`
+   - `AWS_SECRET_ACCESS_KEY`
+   - `S3_BUCKET_NAME`
+2. Install dependencies if you haven't: `npm install`
+3. Run:
+   ```bash
+   npm run download:originals
+   ```
+
+The script will:
+
+- List all objects with prefix `originals/` (handles pagination)
+- Skip any files already present locally (resume capable)
+- Download concurrently (8 at a time) into `downloads/originals/` preserving key paths
+- Write a `failed-keys.txt` file if any objects couldn't be downloaded
+
+Safety notes:
+
+- If more than 1000 files need downloading, you'll be asked for confirmation.
+- Rerunning the script is safe; already-downloaded files are skipped.
+- Ensure you have sufficient disk space before proceeding.
